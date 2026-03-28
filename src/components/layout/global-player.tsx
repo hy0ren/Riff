@@ -67,7 +67,7 @@ export function GlobalPlayer() {
             {currentTrack?.title ?? 'No track playing'}
           </span>
           <span className="truncate text-[10px] text-[var(--riff-text-muted)]">
-            {currentTrack?.artist ?? 'Riff Radio'}
+            {currentTrack?.artist ?? 'Riff'}
           </span>
         </div>
 

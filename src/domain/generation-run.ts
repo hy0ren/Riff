@@ -1,4 +1,5 @@
 import type { Blueprint } from './blueprint'
+import type { ProviderModelMetadata } from './providers'
 import type { SourceInputKind, SourceInputRole } from './source-input'
 import type { SourceInfluence, SourceSetItem } from './source-set'
 import type { TrackVersionKind } from './track-version'
@@ -54,5 +55,9 @@ export interface GenerationRun {
   outputVersionId?: string
   modifiers?: GenerationRunModifiers
   errorMessage?: string
+  failureCode?: string
+  resultSummary?: string
+  providerRunId?: string
+  providerMetadata?: ProviderModelMetadata
   generationContextSnapshot: GenerationContextSnapshot
 }

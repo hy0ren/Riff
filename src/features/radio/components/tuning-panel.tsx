@@ -200,7 +200,7 @@ export function TuningPanel({ tuning, onChange, onReset }: TuningPanelProps) {
                 accentColor="#1db954"
               />
               <p className="text-[11px] leading-relaxed text-[var(--riff-text-faint)]">
-                Spotify taste informs personalization. Riff Radio remains the product center.
+                Spotify taste informs personalization. Riff remains the product center.
               </p>
             </>
           ) : (

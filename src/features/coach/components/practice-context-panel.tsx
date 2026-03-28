@@ -1,4 +1,5 @@
 import type { Project, ProjectVersion } from '@/domain/project'
+import type { GeminiPracticeBriefResult } from '@/domain/providers'
 import type { PracticeMode } from '../types/practice-session'
 import { Badge } from '@/components/ui/badge'
 import { Mic2, Guitar, Layers, Target, Activity, Music, Piano } from 'lucide-react'
@@ -13,6 +14,7 @@ interface PracticeContextPanelProps {
   onFocusChange: (area: string) => void
   selectedSection: string
   onSectionChange: (section: string) => void
+  practiceBrief: GeminiPracticeBriefResult | null
 }
 
 const MODES: { id: PracticeMode; icon: typeof Mic2; label: string }[] = [
@@ -33,6 +35,7 @@ export function PracticeContextPanel({
   onFocusChange,
   selectedSection,
   onSectionChange,
+  practiceBrief,
 }: PracticeContextPanelProps) {
   return (
     <div className="flex flex-col gap-6 p-5">
@@ -173,6 +176,30 @@ export function PracticeContextPanel({
           <option value="expression">Overall Expression</option>
         </select>
       </div>
+
+      {practiceBrief ? (
+        <div
+          className="rounded-xl p-4"
+          style={{ background: 'var(--riff-surface-mid)', border: '1px solid rgba(255,255,255,0.04)' }}
+        >
+          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--riff-accent-light)]">
+            Practice Brief
+          </p>
+          <p className="mt-2 text-sm font-medium text-[var(--riff-text-primary)]">
+            {practiceBrief.title}
+          </p>
+          <p className="mt-2 text-xs leading-relaxed text-[var(--riff-text-secondary)]">
+            {practiceBrief.summary}
+          </p>
+          <div className="mt-3 flex flex-col gap-1.5">
+            {practiceBrief.cues.slice(0, 3).map((cue) => (
+              <p key={cue} className="text-xs text-[var(--riff-text-muted)]">
+                • {cue}
+              </p>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
     </div>
   )

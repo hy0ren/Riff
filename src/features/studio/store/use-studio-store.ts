@@ -1,11 +1,16 @@
 import { create } from 'zustand'
 import type { BlueprintDraftField } from '@/domain/blueprint-draft'
+import type { InterpretationSnapshot } from '@/domain/interpretation'
 import type { PersistedProject } from '@/domain/project'
 import type { SourceInput } from '@/domain/source-input'
 import type { SourceSet } from '@/domain/source-set'
 import type { TrackVersionKind } from '@/domain/track-version'
 import { useProjectStore } from '@/features/projects/store/use-project-store'
-import { createBlueprintDraft, commitBlueprintDraft, updateBlueprintDraftField } from '@/lib/studio-pipeline/blueprint-draft'
+import {
+  createBlueprintDraft,
+  commitBlueprintDraft,
+  updateBlueprintDraftField,
+} from '@/lib/studio-pipeline/blueprint-draft'
 import {
   createGenerationRun,
   createMockTrackVersion,
@@ -13,6 +18,11 @@ import {
 } from '@/lib/studio-pipeline/generation'
 import { nowIso } from '@/lib/studio-pipeline/ids'
 import { createInterpretationSnapshot } from '@/lib/studio-pipeline/interpretation'
+import {
+  interpretSourceSet,
+  summarizeTrackVersion,
+} from '@/lib/providers/gemini-gateway'
+import { generateTrack } from '@/lib/providers/lyria-gateway'
 
 interface StartGenerationOptions {
   kind?: TrackVersionKind
@@ -30,14 +40,14 @@ interface StudioState {
   selectedVersionIds: string[]
   hydrateProject: (projectId: string) => void
   setQuickRefinementText: (value: string) => void
-  refreshInterpretation: (projectId: string) => void
-  setSelectedSourceSet: (projectId: string, sourceSetId: string) => void
-  toggleSourceEnabled: (projectId: string, sourceInputId: string) => void
-  setSourceWeight: (projectId: string, sourceInputId: string, weight: number) => void
+  refreshInterpretation: (projectId: string) => Promise<void>
+  setSelectedSourceSet: (projectId: string, sourceSetId: string) => Promise<void>
+  toggleSourceEnabled: (projectId: string, sourceInputId: string) => Promise<void>
+  setSourceWeight: (projectId: string, sourceInputId: string, weight: number) => Promise<void>
   updateDraftField: (projectId: string, field: BlueprintDraftField, value: unknown) => void
   commitDraft: (projectId: string) => void
   loadVersion: (projectId: string, versionId: string) => void
-  startGeneration: (projectId: string, options?: StartGenerationOptions) => void
+  startGeneration: (projectId: string, options?: StartGenerationOptions) => Promise<void>
 }
 
 function clampWeight(weight: number): number {
@@ -60,19 +70,62 @@ function getSourceInputsForSet(project: PersistedProject, sourceSet: SourceSet):
   return project.sourceInputs.filter((sourceInput) => sourceInputIds.has(sourceInput.id))
 }
 
-function rebuildInterpretation(project: PersistedProject, sourceSet: SourceSet): PersistedProject {
+async function buildInterpretationSnapshot(
+  project: PersistedProject,
+  sourceSet: SourceSet,
+): Promise<InterpretationSnapshot> {
   const activeBlueprint =
     project.blueprints.find((blueprint) => blueprint.id === project.activeBlueprintId) ??
     project.blueprints[project.blueprints.length - 1]
-  const interpretation = createInterpretationSnapshot({
+  const sourceInputs = getSourceInputsForSet(project, sourceSet)
+  const existingInterpretation =
+    project.interpretations.find(
+      (candidate) => candidate.id === project.activeInterpretationId,
+    ) ?? project.interpretations[0]
+
+  const fallbackInterpretation = createInterpretationSnapshot({
     project,
     sourceSet,
-    sourceInputs: getSourceInputsForSet(project, sourceSet),
+    sourceInputs,
     activeBlueprint,
-    existingInterpretation: project.interpretations.find(
-      (candidate) => candidate.id === project.activeInterpretationId,
-    ),
+    existingInterpretation,
   })
+
+  try {
+    const providerResult = await interpretSourceSet({
+      projectId: project.id,
+      projectTitle: project.title,
+      sourceSet,
+      sourceInputs,
+      activeBlueprint,
+    })
+
+    return {
+      ...fallbackInterpretation,
+      summary: providerResult.summary,
+      derivedBlueprint: providerResult.derivedBlueprint,
+      signals: providerResult.signals,
+      conflicts: providerResult.conflicts,
+      providerMetadata: {
+        provider: providerResult.provider,
+        model: providerResult.model,
+        schemaVersion: providerResult.schemaVersion,
+        requestHash: providerResult.requestHash,
+      },
+    }
+  } catch {
+    return fallbackInterpretation
+  }
+}
+
+async function rebuildInterpretation(
+  project: PersistedProject,
+  sourceSet: SourceSet,
+): Promise<PersistedProject> {
+  const activeBlueprint =
+    project.blueprints.find((blueprint) => blueprint.id === project.activeBlueprintId) ??
+    project.blueprints[project.blueprints.length - 1]
+  const interpretation = await buildInterpretationSnapshot(project, sourceSet)
 
   const nextInterpretations = [
     interpretation,
@@ -124,9 +177,10 @@ function commitCurrentDraft(project: PersistedProject): PersistedProject {
     currentRevision: activeBlueprint?.revision ?? project.blueprints.length,
   })
 
-  const nextBlueprints = activeBlueprint && !draftWasDirty
-    ? project.blueprints
-    : [...project.blueprints.filter((candidate) => candidate.id !== blueprint.id), blueprint]
+  const nextBlueprints =
+    activeBlueprint && !draftWasDirty
+      ? project.blueprints
+      : [...project.blueprints.filter((candidate) => candidate.id !== blueprint.id), blueprint]
 
   return {
     ...project,
@@ -155,15 +209,6 @@ function markVersionActive(project: PersistedProject, versionId: string): Persis
   }
 }
 
-function runLater(callback: () => void, delayMs: number) {
-  if (typeof window === 'undefined') {
-    callback()
-    return
-  }
-
-  window.setTimeout(callback, delayMs)
-}
-
 export const useStudioStore = create<StudioState>((set) => ({
   activeProjectId: null,
   selectedSourceSetId: null,
@@ -187,105 +232,126 @@ export const useStudioStore = create<StudioState>((set) => ({
     })
   },
   setQuickRefinementText: (value) => set({ quickRefinementText: value }),
-  refreshInterpretation: (projectId) => {
+  refreshInterpretation: async (projectId) => {
     const sourceSetId = useStudioStore.getState().selectedSourceSetId
+    const project = getProject(projectId)
+    if (!project) {
+      return
+    }
+
+    const sourceSet =
+      project.sourceSets.find((candidate) => candidate.id === sourceSetId) ??
+      getActiveSourceSet(project)
+
+    if (!sourceSet) {
+      return
+    }
+
     set({ interpretationStatus: 'refreshing' })
-    useProjectStore.getState().updateProject(projectId, (project) => {
-      const sourceSet =
-        project.sourceSets.find((candidate) => candidate.id === sourceSetId) ??
-        getActiveSourceSet(project)
-
-      if (!sourceSet) {
-        return project
-      }
-
-      return rebuildInterpretation(
-        {
-          ...project,
-          activeSourceSetId: sourceSet.id,
-        },
-        sourceSet,
-      )
-    })
+    const rebuiltProject = await rebuildInterpretation(
+      {
+        ...project,
+        activeSourceSetId: sourceSet.id,
+      },
+      sourceSet,
+    )
+    useProjectStore.getState().upsertProject(rebuiltProject)
     set({ interpretationStatus: 'idle' })
   },
-  setSelectedSourceSet: (projectId, sourceSetId) => {
-    useProjectStore.getState().updateProject(projectId, (project) => {
-      const sourceSet =
-        project.sourceSets.find((candidate) => candidate.id === sourceSetId) ??
-        project.sourceSets[0]
+  setSelectedSourceSet: async (projectId, sourceSetId) => {
+    const project = getProject(projectId)
+    if (!project) {
+      return
+    }
 
-      if (!sourceSet) {
-        return project
-      }
+    const sourceSet =
+      project.sourceSets.find((candidate) => candidate.id === sourceSetId) ??
+      project.sourceSets[0]
 
-      return rebuildInterpretation(
-        {
-          ...project,
-          activeSourceSetId: sourceSet.id,
-        },
-        sourceSet,
-      )
-    })
-    set({ selectedSourceSetId: sourceSetId })
+    if (!sourceSet) {
+      return
+    }
+
+    set({ selectedSourceSetId: sourceSetId, interpretationStatus: 'refreshing' })
+    const rebuiltProject = await rebuildInterpretation(
+      {
+        ...project,
+        activeSourceSetId: sourceSet.id,
+      },
+      sourceSet,
+    )
+    useProjectStore.getState().upsertProject(rebuiltProject)
+    set({ interpretationStatus: 'idle' })
   },
-  toggleSourceEnabled: (projectId, sourceInputId) => {
-    useProjectStore.getState().updateProject(projectId, (project) => {
-      const activeSourceSet = getActiveSourceSet(project)
-      if (!activeSourceSet) {
-        return project
-      }
+  toggleSourceEnabled: async (projectId, sourceInputId) => {
+    const project = getProject(projectId)
+    if (!project) {
+      return
+    }
 
-      const sourceSet = {
-        ...activeSourceSet,
-        updatedAt: nowIso(),
-        items: activeSourceSet.items.map((item) =>
-          item.sourceInputId === sourceInputId
-            ? { ...item, enabled: !item.enabled }
-            : item,
+    const activeSourceSet = getActiveSourceSet(project)
+    if (!activeSourceSet) {
+      return
+    }
+
+    const sourceSet = {
+      ...activeSourceSet,
+      updatedAt: nowIso(),
+      items: activeSourceSet.items.map((item) =>
+        item.sourceInputId === sourceInputId
+          ? { ...item, enabled: !item.enabled }
+          : item,
+      ),
+    }
+
+    set({ interpretationStatus: 'refreshing' })
+    const rebuiltProject = await rebuildInterpretation(
+      {
+        ...project,
+        sourceSets: project.sourceSets.map((candidate) =>
+          candidate.id === sourceSet.id ? sourceSet : candidate,
         ),
-      }
-
-      return rebuildInterpretation(
-        {
-          ...project,
-          sourceSets: project.sourceSets.map((candidate) =>
-            candidate.id === sourceSet.id ? sourceSet : candidate,
-          ),
-          activeSourceSetId: sourceSet.id,
-        },
-        sourceSet,
-      )
-    })
+        activeSourceSetId: sourceSet.id,
+      },
+      sourceSet,
+    )
+    useProjectStore.getState().upsertProject(rebuiltProject)
+    set({ interpretationStatus: 'idle' })
   },
-  setSourceWeight: (projectId, sourceInputId, weight) => {
-    useProjectStore.getState().updateProject(projectId, (project) => {
-      const activeSourceSet = getActiveSourceSet(project)
-      if (!activeSourceSet) {
-        return project
-      }
+  setSourceWeight: async (projectId, sourceInputId, weight) => {
+    const project = getProject(projectId)
+    if (!project) {
+      return
+    }
 
-      const sourceSet = {
-        ...activeSourceSet,
-        updatedAt: nowIso(),
-        items: activeSourceSet.items.map((item) =>
-          item.sourceInputId === sourceInputId
-            ? { ...item, weight: clampWeight(weight) }
-            : item,
+    const activeSourceSet = getActiveSourceSet(project)
+    if (!activeSourceSet) {
+      return
+    }
+
+    const sourceSet = {
+      ...activeSourceSet,
+      updatedAt: nowIso(),
+      items: activeSourceSet.items.map((item) =>
+        item.sourceInputId === sourceInputId
+          ? { ...item, weight: clampWeight(weight) }
+          : item,
+      ),
+    }
+
+    set({ interpretationStatus: 'refreshing' })
+    const rebuiltProject = await rebuildInterpretation(
+      {
+        ...project,
+        sourceSets: project.sourceSets.map((candidate) =>
+          candidate.id === sourceSet.id ? sourceSet : candidate,
         ),
-      }
-
-      return rebuildInterpretation(
-        {
-          ...project,
-          sourceSets: project.sourceSets.map((candidate) =>
-            candidate.id === sourceSet.id ? sourceSet : candidate,
-          ),
-          activeSourceSetId: sourceSet.id,
-        },
-        sourceSet,
-      )
-    })
+        activeSourceSetId: sourceSet.id,
+      },
+      sourceSet,
+    )
+    useProjectStore.getState().upsertProject(rebuiltProject)
+    set({ interpretationStatus: 'idle' })
   },
   updateDraftField: (projectId, field, value) => {
     useProjectStore.getState().updateProject(projectId, (project) => ({
@@ -310,106 +376,150 @@ export const useStudioStore = create<StudioState>((set) => ({
 
     set({ selectedVersionIds: [versionId] })
   },
-  startGeneration: (projectId, options = {}) => {
+  startGeneration: async (projectId, options = {}) => {
     const { quickRefinementText } = useStudioStore.getState()
-    const kind = options.kind ?? 'base'
-    let queuedRunId: string | null = null
-
-    useProjectStore.getState().updateProject(projectId, (project) => {
-      const preparedProject = commitCurrentDraft(project)
-      const sourceSet = getActiveSourceSet(preparedProject)
-      const interpretation =
-        preparedProject.interpretations.find(
-          (candidate) => candidate.id === preparedProject.activeInterpretationId,
-        ) ?? preparedProject.interpretations[0]
-      const blueprint =
-        preparedProject.blueprints.find(
-          (candidate) => candidate.id === preparedProject.activeBlueprintId,
-        ) ?? preparedProject.blueprints[preparedProject.blueprints.length - 1]
-
-      if (!sourceSet || !interpretation || !blueprint) {
-        return preparedProject
-      }
-
-      const parentVersionId =
-        options.parentVersionId ??
-        (kind === 'base' ? undefined : preparedProject.activeVersionId)
-      const generationRun = createGenerationRun({
-        project: preparedProject,
-        sourceSet,
-        sourceInputs: getSourceInputsForSet(preparedProject, sourceSet),
-        interpretation,
-        blueprint,
-        kind,
-        parentVersionId,
-        modifiers: {
-          refinementPrompt: quickRefinementText || undefined,
-          loadOnSuccess: options.loadOnSuccess ?? true,
-        },
-      })
-
-      queuedRunId = generationRun.id
-
-      return {
-        ...preparedProject,
-        status: 'generating',
-        generationRuns: [...preparedProject.generationRuns, generationRun],
-        updatedAt: nowIso(),
-      }
-    })
-
-    if (!queuedRunId) {
+    const project = getProject(projectId)
+    if (!project) {
       return
     }
 
+    const preparedProject = commitCurrentDraft(project)
+    useProjectStore.getState().upsertProject(preparedProject)
+    const committedProject = getProject(projectId)
+    if (!committedProject) {
+      return
+    }
+
+    const sourceSet = getActiveSourceSet(committedProject)
+    const interpretation =
+      committedProject.interpretations.find(
+        (candidate) => candidate.id === committedProject.activeInterpretationId,
+      ) ?? committedProject.interpretations[0]
+    const blueprint =
+      committedProject.blueprints.find(
+        (candidate) => candidate.id === committedProject.activeBlueprintId,
+      ) ?? committedProject.blueprints[committedProject.blueprints.length - 1]
+
+    if (!sourceSet || !interpretation || !blueprint) {
+      return
+    }
+
+    const kind = options.kind ?? 'base'
+    const parentVersionId =
+      options.parentVersionId ?? (kind === 'base' ? undefined : committedProject.activeVersionId)
+    const generationRun = createGenerationRun({
+      project: committedProject,
+      sourceSet,
+      sourceInputs: getSourceInputsForSet(committedProject, sourceSet),
+      interpretation,
+      blueprint,
+      kind,
+      parentVersionId,
+      modifiers: {
+        refinementPrompt: quickRefinementText || undefined,
+        loadOnSuccess: options.loadOnSuccess ?? true,
+      },
+    })
+
+    useProjectStore.getState().updateProject(projectId, (currentProject) => ({
+      ...currentProject,
+      status: 'generating',
+      generationRuns: [...currentProject.generationRuns, generationRun],
+      updatedAt: nowIso(),
+    }))
+
     set({
-      activeGenerationRunId: queuedRunId,
+      activeGenerationRunId: generationRun.id,
       quickRefinementText: '',
     })
 
-    runLater(() => {
-      useProjectStore.getState().updateProject(projectId, (project) => ({
-        ...project,
-        generationRuns: project.generationRuns.map((generationRun) =>
-          generationRun.id === queuedRunId
-            ? updateGenerationRunStatus(generationRun, 'running')
-            : generationRun,
-        ),
-      }))
-    }, 350)
+    useProjectStore.getState().updateProject(projectId, (currentProject) => ({
+      ...currentProject,
+      generationRuns: currentProject.generationRuns.map((candidate) =>
+        candidate.id === generationRun.id
+          ? updateGenerationRunStatus(candidate, 'running')
+          : candidate,
+      ),
+      updatedAt: nowIso(),
+    }))
 
-    runLater(() => {
-      useProjectStore.getState().updateProject(projectId, (project) => {
-        const generationRun = project.generationRuns.find((candidate) => candidate.id === queuedRunId)
-        if (!generationRun) {
-          return project
-        }
+    try {
+      const providerResult = await generateTrack({
+        projectId,
+        blueprint,
+        sourceSet,
+        sourceSummary: interpretation.summary,
+        kind,
+        refinementPrompt: quickRefinementText || undefined,
+        parentVersionId,
+      })
 
-        const completedRun = updateGenerationRunStatus(generationRun, 'succeeded')
-        const nextVersion = createMockTrackVersion({
-          project,
-          generationRun: completedRun,
+      const projectAfterRun = getProject(projectId)
+      if (!projectAfterRun) {
+        return
+      }
+
+      const runningRun = projectAfterRun.generationRuns.find(
+        (candidate) => candidate.id === generationRun.id,
+      )
+      if (!runningRun) {
+        return
+      }
+
+      const completedRun = updateGenerationRunStatus(runningRun, 'succeeded', {
+        providerRunId: providerResult.providerRunId,
+        resultSummary: providerResult.summary,
+        providerMetadata: {
+          provider: providerResult.provider,
+          model: providerResult.model,
+          schemaVersion: providerResult.schemaVersion,
+          requestHash: providerResult.requestHash,
+        },
+      })
+
+      const nextVersion = createMockTrackVersion({
+        project: projectAfterRun,
+        generationRun: completedRun,
+      })
+
+      let insight
+      try {
+        insight = await summarizeTrackVersion({
+          projectId,
+          versionId: nextVersion.id,
+          blueprint,
+          versionName: nextVersion.name,
+          notes: providerResult.summary,
         })
-        const finalizedVersion = {
-          ...nextVersion,
-          isActive: generationRun.modifiers?.loadOnSuccess ?? true,
-        }
+      } catch {
+        insight = undefined
+      }
 
-        const versions = (generationRun.modifiers?.loadOnSuccess ?? true)
-          ? project.versions.map((version) => ({ ...version, isActive: false }))
-          : project.versions
+      const finalizedVersion = {
+        ...nextVersion,
+        duration: providerResult.durationSeconds || nextVersion.duration,
+        isActive: runningRun.modifiers?.loadOnSuccess ?? true,
+        notes: providerResult.summary,
+        insight,
+      }
+
+      useProjectStore.getState().updateProject(projectId, (currentProject) => {
+        const versions =
+          runningRun.modifiers?.loadOnSuccess ?? true
+            ? currentProject.versions.map((version) => ({ ...version, isActive: false }))
+            : currentProject.versions
 
         return {
-          ...project,
-          status: project.status === 'archived' ? 'archived' : 'draft',
+          ...currentProject,
+          status: currentProject.status === 'archived' ? 'archived' : 'draft',
           versions: [...versions, finalizedVersion],
           activeVersionId:
-            generationRun.modifiers?.loadOnSuccess ?? true
+            runningRun.modifiers?.loadOnSuccess ?? true
               ? finalizedVersion.id
-              : project.activeVersionId,
+              : currentProject.activeVersionId,
           versionCount: versions.length + 1,
-          generationRuns: project.generationRuns.map((candidate) =>
-            candidate.id === queuedRunId
+          generationRuns: currentProject.generationRuns.map((candidate) =>
+            candidate.id === generationRun.id
               ? updateGenerationRunStatus(completedRun, 'succeeded', {
                   outputVersionId: finalizedVersion.id,
                 })
@@ -418,6 +528,21 @@ export const useStudioStore = create<StudioState>((set) => ({
           updatedAt: nowIso(),
         }
       })
-    }, 1500)
+    } catch (error) {
+      useProjectStore.getState().updateProject(projectId, (currentProject) => ({
+        ...currentProject,
+        status: currentProject.status === 'archived' ? 'archived' : 'draft',
+        generationRuns: currentProject.generationRuns.map((candidate) =>
+          candidate.id === generationRun.id
+            ? updateGenerationRunStatus(candidate, 'failed', {
+                errorMessage:
+                  error instanceof Error ? error.message : 'Lyria generation failed.',
+                failureCode: 'generation_failed',
+              })
+            : candidate,
+        ),
+        updatedAt: nowIso(),
+      }))
+    }
   },
 }))

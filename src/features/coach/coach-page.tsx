@@ -23,11 +23,16 @@ export function CoachPage() {
     practiceMode,
     focusArea,
     selectedSection,
+    practiceBrief,
+    feedbackEvents,
     setTarget,
     setSessionState,
     setPracticeMode,
     setFocusArea,
     setSelectedSection,
+    connectSession,
+    requestFeedback,
+    disconnectSession,
   } = usePracticeSessionStore()
 
   useProjectRouteContext({
@@ -39,6 +44,14 @@ export function CoachPage() {
   useEffect(() => {
     setTarget(activeProject.id, activeVersion?.id ?? null)
   }, [activeProject.id, activeVersion?.id, setTarget])
+
+  useEffect(() => {
+    void connectSession(activeProject, activeVersion)
+
+    return () => {
+      disconnectSession()
+    }
+  }, [activeProject, activeVersion, connectSession, disconnectSession])
 
   if (!matchedProject && projectId) {
     return <Navigate to={projectRoutes.coach(activeProject.id)} replace />
@@ -53,11 +66,7 @@ export function CoachPage() {
   }
 
   const triggerCoachResponse = () => {
-    setSessionState('analyzing')
-    setTimeout(() => {
-      setSessionState('coaching')
-      setTimeout(() => setSessionState('listening'), 4000)
-    }, 1500)
+    void requestFeedback(activeProject, activeVersion)
   }
 
   return (
@@ -81,6 +90,7 @@ export function CoachPage() {
             onFocusChange={setFocusArea}
             selectedSection={selectedSection}
             onSectionChange={setSelectedSection}
+            practiceBrief={practiceBrief}
           />
         </aside>
 
@@ -116,7 +126,7 @@ export function CoachPage() {
             borderLeft: '1px solid rgba(255,255,255,0.04)',
           }}
         >
-          <CoachTranscriptPanel sessionState={sessionState} />
+          <CoachTranscriptPanel sessionState={sessionState} feedbackEvents={feedbackEvents} />
         </aside>
 
       </div>

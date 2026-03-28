@@ -9,7 +9,7 @@ export function toProjectVersionTrack(
   return {
     id: version.id,
     title: project.title,
-    artist: 'Riff Radio',
+    artist: 'Riff',
     artUrl: project.coverUrl ?? project.artUrl,
     duration: version.duration,
     source: 'project-version',

@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Riff Radio",
+        "title": "Riff",
         "width": 1440,
         "height": 900,
         "minWidth": 1024,

@@ -1,14 +1,18 @@
 import type { SessionState } from '../types/practice-session'
+import type { LiveFeedbackEvent } from '@/domain/providers'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Activity, MessageSquare, CheckCircle2, History } from 'lucide-react'
 
 interface CoachTranscriptPanelProps {
   sessionState: SessionState
+  feedbackEvents: LiveFeedbackEvent[]
 }
 
-export function CoachTranscriptPanel({ sessionState }: CoachTranscriptPanelProps) {
+export function CoachTranscriptPanel({ sessionState, feedbackEvents }: CoachTranscriptPanelProps) {
   const isCoaching = sessionState === 'coaching'
   const isAnalyzing = sessionState === 'analyzing'
+  const latestEvent = feedbackEvents[0]
+  const historicalEvents = feedbackEvents.slice(1)
   
   return (
     <div className="flex flex-1 flex-col overflow-hidden p-5">
@@ -58,7 +62,13 @@ export function CoachTranscriptPanel({ sessionState }: CoachTranscriptPanelProps
           Riff Coach
         </h3>
         <p className="mt-1 min-h-[16px] text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--riff-text-faint)]">
-          {isCoaching ? 'Speaking...' : isAnalyzing ? 'Analyzing Input...' : 'Listening Active'}
+          {sessionState === 'error'
+            ? 'Connection Error'
+            : isCoaching
+              ? 'Speaking...'
+              : isAnalyzing
+                ? 'Analyzing Input...'
+                : 'Listening Active'}
         </p>
       </div>
 
@@ -85,7 +95,9 @@ export function CoachTranscriptPanel({ sessionState }: CoachTranscriptPanelProps
                 Live Feedback
               </span>
               <p className="mt-1 font-display text-sm italic leading-relaxed text-[var(--riff-text-primary)]">
-                "You rushed that entrance on the Fm chord slightly. Hold that Bbm longer next measure."
+                {latestEvent
+                  ? `"${latestEvent.text}"`
+                  : '"Start rehearsal to receive live coaching feedback."'}
               </p>
             </div>
           </div>
@@ -98,39 +110,50 @@ export function CoachTranscriptPanel({ sessionState }: CoachTranscriptPanelProps
           </div>
 
           {/* Historical entries */}
-          <div className="flex gap-3.5 opacity-70">
-            <div
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-              style={{ background: 'var(--riff-surface-high)' }}
-            >
-              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+          {historicalEvents.length ? (
+            historicalEvents.map((event, index) => (
+              <div key={event.id} className="flex gap-3.5 opacity-70">
+                <div
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
+                  style={{ background: 'var(--riff-surface-high)' }}
+                >
+                  {index % 2 === 0 ? (
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                  ) : (
+                    <Activity className="h-3.5 w-3.5 text-amber-500" />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--riff-text-faint)]">
+                    {new Date(event.timestamp).toLocaleTimeString([], {
+                      hour: 'numeric',
+                      minute: '2-digit',
+                    })}
+                  </span>
+                  <p className="mt-1 text-sm leading-relaxed text-[var(--riff-text-secondary)]">
+                    "{event.text}"
+                  </p>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="flex gap-3.5 opacity-70">
+              <div
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
+                style={{ background: 'var(--riff-surface-high)' }}
+              >
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+              </div>
+              <div className="min-w-0">
+                <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--riff-text-faint)]">
+                  Waiting for first pass
+                </span>
+                <p className="mt-1 text-sm leading-relaxed text-[var(--riff-text-secondary)]">
+                  Connect your Live session and rehearse to build a feedback history here.
+                </p>
+              </div>
             </div>
-            <div className="min-w-0">
-              <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--riff-text-faint)]">
-                0:45 · Chorus A
-              </span>
-              <p className="mt-1 text-sm leading-relaxed text-[var(--riff-text-secondary)]">
-                "Great timing on that drop. Your pitch is perfectly locked to the guide."
-              </p>
-            </div>
-          </div>
-          
-          <div className="flex gap-3.5 opacity-50">
-            <div
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-              style={{ background: 'var(--riff-surface-high)' }}
-            >
-              <Activity className="h-3.5 w-3.5 text-amber-500" />
-            </div>
-            <div className="min-w-0">
-              <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--riff-text-faint)]">
-                0:15 · Verse 1
-              </span>
-              <p className="mt-1 text-sm leading-relaxed text-[var(--riff-text-secondary)]">
-                "Watch your breath control on the third line, you went a bit flat."
-              </p>
-            </div>
-          </div>
+          )}
 
         </div>
       </ScrollArea>

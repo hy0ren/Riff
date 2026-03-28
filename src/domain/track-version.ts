@@ -1,4 +1,5 @@
 import type { LyricsSection, TrackStructureNode } from './blueprint'
+import type { GeminiTrackSummaryResult } from './providers'
 
 export type VersionExportAssetType =
   | 'audio'
@@ -42,4 +43,5 @@ export interface TrackVersion {
   lyrics?: LyricsSection[]
   exports?: VersionExportStatus[]
   notes?: string
+  insight?: GeminiTrackSummaryResult
 }

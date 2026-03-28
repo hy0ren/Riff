@@ -1,15 +1,15 @@
 # guardian.md
 
-## Riff Radio — Product Doctrine & Governance
+## Riff — Product Doctrine & Governance
 
-This document is the permanent source of truth for Riff Radio. It defines the product’s identity, hierarchy, capability boundaries, design rules, domain model, and architecture governance. All future Warrior, Spartan, and Knight work must follow this document.
+This document is the permanent source of truth for Riff. It defines the product’s identity, hierarchy, capability boundaries, design rules, domain model, and architecture governance. All future Warrior, Spartan, and Knight work must follow this document.
 
 ---
 
 ## 1. Product Identity & Core Thesis
 
 ### Identity
-Riff Radio is a premium, desktop-native AI music creation workspace.
+Riff is a premium, desktop-native AI music creation workspace.
 
 ### Core Thesis
 Song creation is a persistent, iterative project workflow. Raw musical ideas become finished, learnable tracks through structured AI guidance, revision, and live practice.
@@ -27,13 +27,13 @@ Song creation is a persistent, iterative project workflow. Raw musical ideas bec
 4. **Listening Loop** — browse library → seed radio/explore → listen and discover
 
 ### Product Promise
-Riff Radio helps users turn rough ideas into finished tracks, then helps them learn and practice what they made.
+Riff helps users turn rough ideas into finished tracks, then helps them learn and practice what they made.
 
 ---
 
 ## 2. Non-Goals
 
-Riff Radio is **not**:
+Riff is **not**:
 
 - a disposable one-shot text-to-song web toy
 - a Spotify replacement or streaming client clone
@@ -61,10 +61,10 @@ The project-starting intake surface for collecting source material, references, 
 The main flagship workspace. Multi-input generation, blueprint refinement, and structured iteration happen here. This is the center of gravity of the product.
 
 #### Coach / Practice
-The second flagship experience. Real-time spoken and visual feedback for practicing songs created inside Riff Radio.
+The second flagship experience. Real-time spoken and visual feedback for practicing songs created inside Riff.
 
 #### Track Details & Persistence
-The system that proves Riff Radio is a serious creative product rather than a one-shot generator. Includes metadata, history, generated revisions, and inspection.
+The system that proves Riff is a serious creative product rather than a one-shot generator. Includes metadata, history, generated revisions, and inspection.
 
 ### Tier 2 — Platform Context
 These features add depth and context, but must remain subordinate to Tier 1.
@@ -183,7 +183,7 @@ Internal development tools only. They are not runtime product features and must 
 
 ## 5. Capability Honesty
 
-Riff Radio must stay honest about what the stack can and cannot guarantee.
+Riff must stay honest about what the stack can and cannot guarantee.
 
 ### What the system can safely claim
 - it can interpret rough user input into a structured musical blueprint
@@ -324,7 +324,7 @@ Radio and Explore are downstream of creation. They must never become the dominan
 ## 8. UX & Design Doctrine
 
 ### Visual Identity
-Riff Radio should feel:
+Riff should feel:
 - premium
 - dark
 - desktop-native
@@ -349,7 +349,7 @@ Riff Radio should feel:
 - random mixed design systems
 
 ### Desktop-Native Philosophy
-Riff Radio is built for desktop windows and longer sessions.
+Riff is built for desktop windows and longer sessions.
 
 Use:
 - sidebars
@@ -544,7 +544,7 @@ Saving, loading, versioning, and export orchestration must be handled through de
 Future work must actively avoid these failures.
 
 ### Product Anti-Patterns
-- turning Riff Radio into a Spotify-like browsing app
+- turning Riff into a Spotify-like browsing app
 - making Radio or Explore visually overshadow Studio
 - treating community features like the product center
 - overpromising exact music-transcription capabilities
@@ -592,7 +592,7 @@ If any future prompt or implementation conflicts with this document, this docume
 
 ## 15. Final Operating Principle
 
-Riff Radio is a creator-first desktop music workspace.
+Riff is a creator-first desktop music workspace.
 
 Its identity is not “AI for everything.”  
 Its identity is:

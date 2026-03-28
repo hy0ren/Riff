@@ -12,6 +12,7 @@ import { ExplorePage } from '@/features/explore/explore-page'
 import { ExportsPage } from '@/features/exports/exports-page'
 import { SettingsPage } from '@/features/settings/settings-page'
 import { TrackDetailsPage } from '@/features/track-details/track-details-page'
+import { SpotifyCallbackPage } from '@/features/integrations/spotify-callback-page'
 import {
   LegacyCoachRedirect,
   LegacyStudioRedirect,
@@ -32,6 +33,7 @@ export const router = createBrowserRouter([
       { path: 'explore', element: <ExplorePage /> },
       { path: 'exports', element: <ExportsPage /> },
       { path: 'settings', element: <SettingsPage /> },
+      { path: 'integrations/spotify/callback', element: <SpotifyCallbackPage /> },
       { path: 'track/:id', element: <LegacyTrackRedirect /> },
       { path: 'projects/:projectId', element: <TrackDetailsPage /> },
       { path: 'projects/:projectId/versions/:versionId', element: <TrackDetailsPage /> },

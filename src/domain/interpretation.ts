@@ -1,4 +1,5 @@
 import type { Blueprint } from './blueprint'
+import type { ProviderModelMetadata } from './providers'
 
 export type InterpretationField =
   | 'bpm'
@@ -46,4 +47,5 @@ export interface InterpretationSnapshot {
   derivedBlueprint: Partial<Blueprint>
   signals: InterpretationSignal[]
   conflicts: InterpretationConflict[]
+  providerMetadata?: ProviderModelMetadata
 }

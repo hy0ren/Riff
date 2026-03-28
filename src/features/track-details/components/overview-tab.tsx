@@ -104,6 +104,41 @@ export function OverviewTab({ project, version }: OverviewTabProps) {
                  <p className="text-[10px] text-[var(--riff-text-muted)] uppercase tracking-wider mb-1">Theme</p>
                  <p className="text-sm italic text-[var(--riff-text-secondary)]">"{project.blueprint.lyricTheme || 'Reflective, atmospheric'}"</p>
                </div>
+           </div>
+          </div>
+        )}
+
+        {version.insight && (
+          <div className="rounded-xl bg-[var(--riff-surface-low)] border border-[var(--riff-surface-highest)] p-6 shadow-xl">
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-[var(--riff-text-secondary)] mb-4">
+              Version Insight
+            </h3>
+            <div className="space-y-4">
+              <p className="text-sm leading-relaxed text-[var(--riff-text-secondary)]">
+                {version.insight.summary}
+              </p>
+              <div>
+                <p className="text-[10px] text-[var(--riff-text-muted)] uppercase tracking-wider mb-1">
+                  Arrangement
+                </p>
+                <p className="text-sm text-[var(--riff-text-primary)]">
+                  {version.insight.arrangementSummary}
+                </p>
+              </div>
+              {!!version.insight.practiceNotes.length && (
+                <div>
+                  <p className="text-[10px] text-[var(--riff-text-muted)] uppercase tracking-wider mb-1">
+                    Practice Notes
+                  </p>
+                  <div className="space-y-1.5">
+                    {version.insight.practiceNotes.slice(0, 3).map((note) => (
+                      <p key={note} className="text-sm text-[var(--riff-text-secondary)]">
+                        • {note}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

@@ -30,7 +30,7 @@ export function AdvancedSection() {
             </p>
           </div>
           <p className="shrink-0 text-right text-sm text-[var(--riff-text-secondary)]">
-            Riff Radio v0.9.2 (Build 847)
+            Riff v0.9.2 (Build 847)
           </p>
         </div>
 

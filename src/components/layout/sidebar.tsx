@@ -123,7 +123,7 @@ export function Sidebar() {
         </div>
         <div className="flex flex-col">
           <span className="font-display text-sm font-bold tracking-tight text-[var(--riff-text-primary)]">
-            Riff Radio
+            Riff
           </span>
           <span className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[var(--riff-text-faint)]">
             AI Music Engine
