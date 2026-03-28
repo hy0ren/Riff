@@ -1,19 +1,25 @@
-import type { Project } from '@/domain/project'
+import type { PersistedProject } from '@/domain/project'
 import { Badge } from '@/components/ui/badge'
 import { 
-  Music, Layers, Heart, Play, Mic2, Globe
+  Music, Layers, Heart, Play, Mic2, Globe, Trash2
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { relativeTime, statusColor, statusLabel } from '../lib/library-utils'
+import { usePlaybackStore } from '@/features/playback/store/use-playback-store'
+import { getProjectVersion } from '@/features/projects/lib/project-selectors'
+import { toProjectVersionTrack } from '@/features/playback/lib/playable-track'
 
 interface LibraryProjectCardProps {
-  project: Project
+  project: PersistedProject
   isSelected?: boolean
   onClick?: () => void
+  onDelete?: () => void
 }
 
-export function LibraryProjectCard({ project, isSelected, onClick }: LibraryProjectCardProps) {
+export function LibraryProjectCard({ project, isSelected, onClick, onDelete }: LibraryProjectCardProps) {
   const bp = project.blueprint
+  const setTrack = usePlaybackStore((state) => state.setTrack)
+  const activeVersion = getProjectVersion(project)
 
   return (
     <div 
@@ -28,9 +34,9 @@ export function LibraryProjectCard({ project, isSelected, onClick }: LibraryProj
     >
       {/* Artwork */}
       <div className="relative aspect-square w-full overflow-hidden bg-[var(--riff-surface)]">
-        {project.coverUrl ? (
+        {project.coverUrl ?? project.artUrl ? (
           <img 
-            src={project.coverUrl} 
+            src={project.coverUrl ?? project.artUrl} 
             alt="" 
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" 
           />
@@ -42,7 +48,16 @@ export function LibraryProjectCard({ project, isSelected, onClick }: LibraryProj
 
         {/* Overlay Controls */}
         <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/40 transition-colors">
-          <button className="flex h-12 w-12 items-center justify-center rounded-full bg-white/90 text-black opacity-0 group-hover:opacity-100 transition-all duration-200 hover:scale-110 active:scale-95 shadow-xl">
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation()
+              if (activeVersion?.audioUrl) {
+                setTrack(toProjectVersionTrack(project, activeVersion))
+              }
+            }}
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-white/90 text-black opacity-0 group-hover:opacity-100 transition-all duration-200 hover:scale-110 active:scale-95 shadow-xl"
+          >
             <Play className="h-5 w-5 ml-0.5 fill-current" />
           </button>
         </div>
@@ -52,6 +67,20 @@ export function LibraryProjectCard({ project, isSelected, onClick }: LibraryProj
           <div className="absolute top-2.5 right-2.5">
             <Heart className="h-4 w-4 fill-rose-500 text-rose-500 drop-shadow-lg" />
           </div>
+        )}
+
+        {onDelete && (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation()
+              onDelete()
+            }}
+            className="absolute bottom-2.5 right-2.5 flex h-8 w-8 items-center justify-center rounded-full border border-red-500/20 bg-black/45 text-red-200 opacity-0 transition group-hover:opacity-100 hover:bg-red-500/20"
+            aria-label={`Delete ${project.title}`}
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
         )}
 
         {/* Published Globe */}

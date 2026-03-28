@@ -32,7 +32,7 @@ export type SourceInputProvenance = 'recorded' | 'uploaded' | 'typed' | 'spotify
 export interface SourceInputNormalizedMetadata {
   durationSeconds?: number
   fileName?: string
-  fileFormat?: 'wav' | 'mp3' | 'pdf' | 'midi' | 'musicxml' | 'txt'
+  fileFormat?: 'wav' | 'mp3' | 'webm' | 'ogg' | 'pdf' | 'midi' | 'musicxml' | 'txt'
   textLength?: number
   providerName?: string
   providerTitle?: string

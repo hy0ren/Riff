@@ -34,6 +34,7 @@ export function StudioPage() {
     refreshInterpretation,
     toggleSourceEnabled,
     setSourceWeight,
+    setSourceInfluence,
     updateSourceInputField,
     updateDraftField,
     commitDraft,
@@ -86,6 +87,9 @@ export function StudioPage() {
             onToggleSourceEnabled={(sourceInputId) => toggleSourceEnabled(activeProject.id, sourceInputId)}
             onSourceWeightChange={(sourceInputId, weight) =>
               setSourceWeight(activeProject.id, sourceInputId, weight)
+            }
+            onSourceInfluenceChange={(sourceInputId, influence) =>
+              setSourceInfluence(activeProject.id, sourceInputId, influence)
             }
             onSourceFieldChange={(sourceInputId, field, value) =>
               updateSourceInputField(activeProject.id, sourceInputId, field, value)

@@ -7,6 +7,7 @@ interface ProjectStoreState {
   projects: PersistedProject[]
   replaceProjects: (projects: PersistedProject[]) => void
   upsertProject: (project: PersistedProject) => void
+  deleteProject: (projectId: string) => void
   updateProject: (
     projectId: string,
     updater: (project: PersistedProject) => PersistedProject,
@@ -36,6 +37,12 @@ export const useProjectStore = create<ProjectStoreState>((set) => ({
             )
           : [normalizedProject, ...state.projects]
 
+      saveProjects(projects)
+      return { projects }
+    }),
+  deleteProject: (projectId) =>
+    set((state) => {
+      const projects = state.projects.filter((project) => project.id !== projectId)
       saveProjects(projects)
       return { projects }
     }),

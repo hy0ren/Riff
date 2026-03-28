@@ -2,6 +2,7 @@ export interface ProviderConfig {
   googleApiKey?: string
   geminiModel: string
   lyriaModel: string
+  nanoBananaModel: string
   spotifyClientId?: string
   spotifyRedirectUri?: string
 }
@@ -10,6 +11,7 @@ const providerConfig: ProviderConfig = {
   googleApiKey: import.meta.env.VITE_GOOGLE_API_KEY,
   geminiModel: import.meta.env.VITE_GEMINI_MODEL ?? 'gemini-3-flash-preview',
   lyriaModel: import.meta.env.VITE_LYRIA_MODEL ?? 'lyria-3-pro-preview',
+  nanoBananaModel: import.meta.env.VITE_NANO_BANANA_MODEL ?? 'gemini-2.5-flash-image',
   spotifyClientId: import.meta.env.VITE_SPOTIFY_CLIENT_ID,
   spotifyRedirectUri: import.meta.env.VITE_SPOTIFY_REDIRECT_URI,
 }

@@ -11,6 +11,7 @@ interface PlaybackState {
   isPlaying: boolean
   currentTime: number
   volume: number
+  updateDuration: (duration: number) => void
   setTrack: (track: PlayableTrack) => void
   clearTrack: () => void
   play: () => void
@@ -25,6 +26,19 @@ export const usePlaybackStore = create<PlaybackState>((set) => ({
   isPlaying: false,
   currentTime: 0,
   volume: 0.8,
+  updateDuration: (duration) =>
+    set((state) => {
+      if (!state.currentTrack || !Number.isFinite(duration) || duration <= 0) {
+        return state
+      }
+
+      return {
+        currentTrack: {
+          ...state.currentTrack,
+          duration,
+        },
+      }
+    }),
   setTrack: (track) => {
     if (audioElement && track.audioUrl) {
       audioElement.src = track.audioUrl
@@ -79,6 +93,16 @@ export const usePlaybackStore = create<PlaybackState>((set) => ({
 
 if (audioElement) {
   audioElement.preload = 'auto'
+  audioElement.addEventListener('loadedmetadata', () => {
+    if (Number.isFinite(audioElement.duration) && audioElement.duration > 0) {
+      usePlaybackStore.getState().updateDuration(audioElement.duration)
+    }
+  })
+  audioElement.addEventListener('durationchange', () => {
+    if (Number.isFinite(audioElement.duration) && audioElement.duration > 0) {
+      usePlaybackStore.getState().updateDuration(audioElement.duration)
+    }
+  })
   audioElement.addEventListener('timeupdate', () => {
     usePlaybackStore.setState({ currentTime: audioElement.currentTime })
   })

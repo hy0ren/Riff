@@ -3,7 +3,7 @@ import type { BlueprintDraftField } from '@/domain/blueprint-draft'
 import type { InterpretationSnapshot } from '@/domain/interpretation'
 import type { PersistedProject } from '@/domain/project'
 import type { SourceInput } from '@/domain/source-input'
-import type { SourceSet } from '@/domain/source-set'
+import type { SourceInfluence, SourceSet } from '@/domain/source-set'
 import type { TrackVersionKind } from '@/domain/track-version'
 import { useProjectStore } from '@/features/projects/store/use-project-store'
 import {
@@ -22,7 +22,9 @@ import {
   interpretSourceSet,
   summarizeTrackVersion,
 } from '@/lib/providers/gemini-gateway'
+import { generateProjectCoverArt } from '@/lib/providers/cover-art-gateway'
 import { generateTrack } from '@/lib/providers/lyria-gateway'
+import type { Blueprint } from '@/domain/blueprint'
 
 interface StartGenerationOptions {
   kind?: TrackVersionKind
@@ -53,6 +55,11 @@ interface StudioState {
   setSelectedSourceSet: (projectId: string, sourceSetId: string) => Promise<void>
   toggleSourceEnabled: (projectId: string, sourceInputId: string) => Promise<void>
   setSourceWeight: (projectId: string, sourceInputId: string, weight: number) => Promise<void>
+  setSourceInfluence: (
+    projectId: string,
+    sourceInputId: string,
+    influence: SourceInfluence,
+  ) => Promise<void>
   updateDraftField: (projectId: string, field: BlueprintDraftField, value: unknown) => void
   commitDraft: (projectId: string) => void
   loadVersion: (projectId: string, versionId: string) => void
@@ -61,6 +68,17 @@ interface StudioState {
 
 function clampWeight(weight: number): number {
   return Math.max(0, Math.min(100, Math.round(weight)))
+}
+
+function getDefaultWeightForInfluence(influence: SourceInfluence): number {
+  switch (influence) {
+    case 'reference':
+      return 35
+    case 'supporting':
+      return 68
+    default:
+      return 100
+  }
 }
 
 function getProject(projectId: string): PersistedProject | undefined {
@@ -203,6 +221,21 @@ function commitCurrentDraft(project: PersistedProject): PersistedProject {
     mood: blueprint.mood,
     vocalsEnabled: blueprint.vocalsEnabled,
     updatedAt: nowIso(),
+  }
+}
+
+function applyGenerationKindBlueprintOverrides(
+  blueprint: Blueprint,
+  kind: TrackVersionKind,
+): Blueprint {
+  if (kind !== 'instrumental') {
+    return blueprint
+  }
+
+  return {
+    ...blueprint,
+    vocalsEnabled: false,
+    vocalStyle: undefined,
   }
 }
 
@@ -395,6 +428,45 @@ export const useStudioStore = create<StudioState>((set) => ({
     useProjectStore.getState().upsertProject(rebuiltProject)
     set({ interpretationStatus: 'idle' })
   },
+  setSourceInfluence: async (projectId, sourceInputId, influence) => {
+    const project = getProject(projectId)
+    if (!project) {
+      return
+    }
+
+    const activeSourceSet = getActiveSourceSet(project)
+    if (!activeSourceSet) {
+      return
+    }
+
+    const sourceSet = {
+      ...activeSourceSet,
+      updatedAt: nowIso(),
+      items: activeSourceSet.items.map((item) =>
+        item.sourceInputId === sourceInputId
+          ? {
+              ...item,
+              influence,
+              weight: clampWeight(getDefaultWeightForInfluence(influence)),
+            }
+          : item,
+      ),
+    }
+
+    set({ interpretationStatus: 'refreshing' })
+    const rebuiltProject = await rebuildInterpretation(
+      {
+        ...project,
+        sourceSets: project.sourceSets.map((candidate) =>
+          candidate.id === sourceSet.id ? sourceSet : candidate,
+        ),
+        activeSourceSetId: sourceSet.id,
+      },
+      sourceSet,
+    )
+    useProjectStore.getState().upsertProject(rebuiltProject)
+    set({ interpretationStatus: 'idle' })
+  },
   updateDraftField: (projectId, field, value) => {
     useProjectStore.getState().updateProject(projectId, (project) => ({
       ...project,
@@ -449,12 +521,13 @@ export const useStudioStore = create<StudioState>((set) => ({
     const kind = options.kind ?? 'base'
     const parentVersionId =
       options.parentVersionId ?? (kind === 'base' ? undefined : committedProject.activeVersionId)
+    const generationBlueprint = applyGenerationKindBlueprintOverrides(blueprint, kind)
     const generationRun = createGenerationRun({
       project: committedProject,
       sourceSet,
       sourceInputs: getSourceInputsForSet(committedProject, sourceSet),
       interpretation,
-      blueprint,
+      blueprint: generationBlueprint,
       kind,
       parentVersionId,
       modifiers: {
@@ -489,7 +562,7 @@ export const useStudioStore = create<StudioState>((set) => ({
     try {
       const providerResult = await generateTrack({
         projectId,
-        blueprint,
+        blueprint: generationBlueprint,
         sourceSet,
         sourceSummary: interpretation.summary,
         kind,
@@ -529,13 +602,31 @@ export const useStudioStore = create<StudioState>((set) => ({
       try {
         insight = await summarizeTrackVersion({
           projectId,
+          projectTitle: projectAfterRun.title,
           versionId: nextVersion.id,
-          blueprint,
+          blueprint: generationBlueprint,
           versionName: nextVersion.name,
           notes: providerResult.summary,
+          audioDataUrl:
+            providerResult.artifactBase64 && providerResult.artifactMimeType
+              ? `data:${providerResult.artifactMimeType};base64,${providerResult.artifactBase64}`
+              : undefined,
+          structure: nextVersion.structure,
+          lyrics: nextVersion.lyrics,
         })
       } catch {
         insight = undefined
+      }
+
+      let generatedCoverUrl: string | undefined
+      try {
+        generatedCoverUrl = await generateProjectCoverArt({
+          projectTitle: projectAfterRun.title,
+          blueprint: generationBlueprint,
+          summary: providerResult.summary,
+        })
+      } catch {
+        generatedCoverUrl = undefined
       }
 
       const finalizedVersion = {
@@ -543,6 +634,8 @@ export const useStudioStore = create<StudioState>((set) => ({
         duration: providerResult.durationSeconds || nextVersion.duration,
         isActive: runningRun.modifiers?.loadOnSuccess ?? true,
         notes: providerResult.summary,
+        structure: insight?.chordSections ?? nextVersion.structure,
+        lyrics: insight?.lyricSections ?? nextVersion.lyrics,
         audioUrl:
           providerResult.artifactBase64 && providerResult.artifactMimeType
             ? `data:${providerResult.artifactMimeType};base64,${providerResult.artifactBase64}`
@@ -570,6 +663,8 @@ export const useStudioStore = create<StudioState>((set) => ({
         return {
           ...currentProject,
           status: currentProject.status === 'archived' ? 'archived' : 'draft',
+          coverUrl: generatedCoverUrl ?? currentProject.coverUrl,
+          artUrl: generatedCoverUrl ?? currentProject.artUrl,
           versions: [...versions, finalizedVersion],
           activeVersionId:
             runningRun.modifiers?.loadOnSuccess ?? true

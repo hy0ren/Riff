@@ -27,8 +27,8 @@ export function ProjectCard({ project, className, onClick }: ProjectCardProps) {
       <CardContent className="p-4 flex gap-4 items-center">
         {/* Artwork / Icon */}
         <div className="relative h-16 w-16 shrink-0 rounded-lg overflow-hidden bg-[var(--riff-surface-mid)]">
-          {project.artUrl ? (
-            <img src={project.artUrl} alt="" className="h-full w-full object-cover grayscale-[0.5] group-hover:grayscale-0 transition-all" />
+          {project.coverUrl ?? project.artUrl ? (
+            <img src={project.coverUrl ?? project.artUrl} alt="" className="h-full w-full object-cover grayscale-[0.5] group-hover:grayscale-0 transition-all" />
           ) : (
             <div className="flex h-full w-full items-center justify-center">
               <Music className="h-8 w-8 text-[var(--riff-text-faint)]" />

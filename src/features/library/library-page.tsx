@@ -2,8 +2,17 @@ import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PageFrame } from '@/components/layout/page-frame'
 import { EmptyState } from '@/components/shared/empty-state'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Button } from '@/components/ui/button'
 import { 
   Search, LayoutGrid, List, Plus, Upload, FolderPlus,
   Music, CheckCircle2,
@@ -21,11 +30,13 @@ type SortMode = 'recent' | 'title' | 'bpm'
 export function LibraryPage() {
   const navigate = useNavigate()
   const projects = useProjectStore((state) => state.projects)
+  const deleteProject = useProjectStore((state) => state.deleteProject)
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const [activeTab, setActiveTab] = useState<TabFilter>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [sortMode, setSortMode] = useState<SortMode>('recent')
+  const [projectPendingDelete, setProjectPendingDelete] = useState<string | null>(null)
 
   // Filtering
   const filtered = useMemo(() => {
@@ -84,27 +95,47 @@ export function LibraryPage() {
   const isLibraryEmpty = totalProjects === 0
   const isFilteredEmpty = !isLibraryEmpty && filtered.length === 0
 
+  const handleConfirmDelete = () => {
+    if (!projectPendingDelete) {
+      return
+    }
+
+    deleteProject(projectPendingDelete)
+    if (selectedId === projectPendingDelete) {
+      setSelectedId(null)
+    }
+    setProjectPendingDelete(null)
+  }
+
   return (
-    <PageFrame
-      title="Library"
-      subtitle="Your creative archive"
-      inspectorSlot={selectedProject ? <LibraryInspector project={selectedProject} /> : undefined}
-      inspectorWidth={380}
-      actions={
-        <div className="flex items-center gap-2">
-          <button className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-[var(--riff-accent)] to-[var(--riff-accent-focus)] text-white font-bold text-xs tracking-wide shadow-lg hover:shadow-xl transition-all active:scale-[0.98]">
-            <Plus className="h-3.5 w-3.5" /> New Track
-          </button>
-          <button className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-[var(--riff-surface-highest)] text-[var(--riff-text-secondary)] text-xs font-medium hover:bg-[var(--riff-surface-high)] transition-colors">
-            <Upload className="h-3.5 w-3.5" /> Import
-          </button>
-          <button className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-[var(--riff-surface-highest)] text-[var(--riff-text-secondary)] text-xs font-medium hover:bg-[var(--riff-surface-high)] transition-colors">
-            <FolderPlus className="h-3.5 w-3.5" /> Collection
-          </button>
-        </div>
-      }
-    >
-      <div className="flex flex-col gap-6 pb-12">
+    <>
+      <PageFrame
+        title="Library"
+        subtitle="Your creative archive"
+        inspectorSlot={
+          selectedProject ? (
+            <LibraryInspector
+              project={selectedProject}
+              onDelete={() => setProjectPendingDelete(selectedProject.id)}
+            />
+          ) : undefined
+        }
+        inspectorWidth={380}
+        actions={
+          <div className="flex items-center gap-2">
+            <button className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-[var(--riff-accent)] to-[var(--riff-accent-focus)] text-white font-bold text-xs tracking-wide shadow-lg hover:shadow-xl transition-all active:scale-[0.98]">
+              <Plus className="h-3.5 w-3.5" /> New Track
+            </button>
+            <button className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-[var(--riff-surface-highest)] text-[var(--riff-text-secondary)] text-xs font-medium hover:bg-[var(--riff-surface-high)] transition-colors">
+              <Upload className="h-3.5 w-3.5" /> Import
+            </button>
+            <button className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-[var(--riff-surface-highest)] text-[var(--riff-text-secondary)] text-xs font-medium hover:bg-[var(--riff-surface-high)] transition-colors">
+              <FolderPlus className="h-3.5 w-3.5" /> Collection
+            </button>
+          </div>
+        }
+      >
+        <div className="flex flex-col gap-6 pb-12">
 
         {/* Stats Row */}
         <div className="flex items-center gap-6">
@@ -205,6 +236,7 @@ export function LibraryPage() {
                 project={project}
                 isSelected={selectedId === project.id}
                 onClick={() => setSelectedId(selectedId === project.id ? null : project.id)}
+                onDelete={() => setProjectPendingDelete(project.id)}
               />
             ))}
           </div>
@@ -227,13 +259,37 @@ export function LibraryPage() {
                 project={project}
                 isSelected={selectedId === project.id}
                 onClick={() => setSelectedId(selectedId === project.id ? null : project.id)}
+                onDelete={() => setProjectPendingDelete(project.id)}
               />
             ))}
           </div>
         )}
 
-      </div>
-    </PageFrame>
+        </div>
+      </PageFrame>
+
+      <Dialog open={!!projectPendingDelete} onOpenChange={(open) => !open && setProjectPendingDelete(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Song From Library?</DialogTitle>
+            <DialogDescription>
+              This will permanently remove the project, its versions, and its generated assets from your local library.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setProjectPendingDelete(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDelete}
+            >
+              Delete Song
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
 

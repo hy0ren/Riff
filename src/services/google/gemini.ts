@@ -3,9 +3,11 @@ import { extractGoogleText, getGoogleModel, googleGenerateContent } from './clie
 export async function callGeminiJson<T>({
   systemInstruction,
   prompt,
+  userParts,
 }: {
   systemInstruction: string
   prompt: string
+  userParts?: Array<Record<string, unknown>>
 }): Promise<T> {
   const response = await googleGenerateContent({
     model: getGoogleModel('gemini'),
@@ -13,7 +15,7 @@ export async function callGeminiJson<T>({
     contents: [
       {
         role: 'user',
-        parts: [{ text: prompt }],
+        parts: [{ text: prompt }, ...(userParts ?? [])],
       },
     ],
     generationConfig: {

@@ -76,12 +76,14 @@ export function extractGoogleInlineData(
   return parts.find((part) => part.inlineData?.data)?.inlineData
 }
 
-export function getGoogleModel(name: 'gemini' | 'lyria'): string {
+export function getGoogleModel(name: 'gemini' | 'lyria' | 'nano-banana'): string {
   const config = getProviderConfig()
 
   switch (name) {
     case 'lyria':
       return config.lyriaModel
+    case 'nano-banana':
+      return config.nanoBananaModel
     default:
       return config.geminiModel
   }

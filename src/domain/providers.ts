@@ -1,4 +1,4 @@
-import type { Blueprint } from './blueprint'
+import type { Blueprint, LyricsSection, TrackStructureNode } from './blueprint'
 import type { InterpretationConflict, InterpretationSignal } from './interpretation'
 import type { SourceInput } from './source-input'
 import type { SourceSet } from './source-set'
@@ -40,10 +40,25 @@ export interface GeminiBlueprintRefinementResult extends ProviderModelMetadata {
 
 export interface GeminiTrackSummaryRequest {
   projectId: string
+  projectTitle?: string
   versionId: string
   blueprint: Blueprint
   versionName: string
   notes?: string
+  audioDataUrl?: string
+  structure?: TrackStructureNode[]
+  lyrics?: LyricsSection[]
+}
+
+export interface LearnSectionGuide {
+  id: string
+  label: string
+  startTime: number
+  duration: number
+  chords: string[]
+  lyricCue?: string[]
+  focus: string
+  memoryCue?: string
 }
 
 export interface GeminiTrackSummaryResult extends ProviderModelMetadata {
@@ -52,6 +67,10 @@ export interface GeminiTrackSummaryResult extends ProviderModelMetadata {
   lyricalThemeSummary?: string
   learningNotes: string[]
   practiceNotes?: string[] // legacy persisted field
+  lyricSections?: LyricsSection[]
+  chordSections?: TrackStructureNode[]
+  sectionGuides?: LearnSectionGuide[]
+  practiceChecklist?: string[]
 }
 
 export interface LyriaGenerationRequest {

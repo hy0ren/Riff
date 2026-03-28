@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 import type { InterpretationSnapshot } from '@/domain/interpretation'
 import type { SourceInput } from '@/domain/source-input'
-import type { SourceSet } from '@/domain/source-set'
+import type { SourceInfluence, SourceSet } from '@/domain/source-set'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Slider } from '@/components/ui/slider'
@@ -26,6 +26,7 @@ interface SourceContextPanelProps {
   onRefreshInterpretation: () => void
   onToggleSourceEnabled: (sourceInputId: string) => void
   onSourceWeightChange: (sourceInputId: string, weight: number) => void
+  onSourceInfluenceChange: (sourceInputId: string, influence: SourceInfluence) => void
   onSourceFieldChange: (
     sourceInputId: string,
     field: 'label' | 'description' | 'text',
@@ -88,6 +89,7 @@ export function SourceContextPanel({
   onRefreshInterpretation,
   onToggleSourceEnabled,
   onSourceWeightChange,
+  onSourceInfluenceChange,
   onSourceFieldChange,
 }: SourceContextPanelProps) {
   const items = [...(sourceSet?.items ?? [])].sort((left, right) => left.order - right.order)
@@ -142,6 +144,7 @@ export function SourceContextPanel({
                   </div>
                 </div>
                 <button
+                  type="button"
                   className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${
                     item.enabled
                       ? 'bg-emerald-500/15 text-emerald-300'
@@ -196,16 +199,40 @@ export function SourceContextPanel({
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs text-[var(--riff-text-muted)]">
+                  <span>Influence Mode</span>
+                  <span className="font-mono text-[var(--riff-text-primary)]">{item.influence}</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['primary', 'supporting', 'reference'] as const).map((influence) => (
+                    <button
+                      key={influence}
+                      type="button"
+                      disabled={!item.enabled}
+                      onClick={() => onSourceInfluenceChange(sourceInput.id, influence)}
+                      className={`rounded-lg border px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide transition ${
+                        item.influence === influence
+                          ? 'border-[var(--riff-accent)] bg-[var(--riff-accent)]/15 text-[var(--riff-accent-light)]'
+                          : 'border-[var(--riff-surface-highest)] bg-[var(--riff-surface)] text-[var(--riff-text-muted)]'
+                      } ${!item.enabled ? 'opacity-50' : ''}`}
+                    >
+                      {influence}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between text-xs text-[var(--riff-text-muted)]">
                   <span>Influence Weight</span>
                   <span className="font-mono text-[var(--riff-text-primary)]">{item.weight}</span>
                 </div>
                 <Slider
-                  value={[item.weight]}
+                  key={`${sourceInput.id}-${item.weight}`}
+                  defaultValue={[item.weight]}
                   min={0}
                   max={100}
                   step={1}
                   disabled={!item.enabled}
-                  onValueChange={(value) => onSourceWeightChange(sourceInput.id, value[0] ?? item.weight)}
+                  onValueCommit={(value) =>
+                    onSourceWeightChange(sourceInput.id, value[0] ?? item.weight)
+                  }
                 />
               </div>
             </div>

@@ -1,4 +1,4 @@
-import type { Project } from '@/domain/project'
+import type { PersistedProject } from '@/domain/project'
 import { Badge } from '@/components/ui/badge'
 import { 
   Music, Layers, Heart, Mic2, Globe, ExternalLink,
@@ -7,14 +7,20 @@ import {
 import { relativeTime, sourceLabel, statusColor, statusLabel } from '../lib/library-utils'
 import { useNavigate } from 'react-router-dom'
 import { projectRoutes } from '@/features/projects/lib/project-routes'
+import { usePlaybackStore } from '@/features/playback/store/use-playback-store'
+import { getProjectVersion } from '@/features/projects/lib/project-selectors'
+import { toProjectVersionTrack } from '@/features/playback/lib/playable-track'
 
 interface LibraryInspectorProps {
-  project: Project
+  project: PersistedProject
+  onDelete?: () => void
 }
 
-export function LibraryInspector({ project }: LibraryInspectorProps) {
+export function LibraryInspector({ project, onDelete }: LibraryInspectorProps) {
   const bp = project.blueprint
   const navigate = useNavigate()
+  const setTrack = usePlaybackStore((state) => state.setTrack)
+  const activeVersion = getProjectVersion(project)
 
   return (
     <div className="flex flex-col h-full p-5 gap-6 overflow-y-auto">
@@ -76,6 +82,16 @@ export function LibraryInspector({ project }: LibraryInspectorProps) {
 
       {/* Quick Actions */}
       <div className="mt-auto flex flex-col gap-2 pt-4 border-t border-[var(--riff-surface-highest)]">
+        <button
+          onClick={() => {
+            if (activeVersion?.audioUrl) {
+              setTrack(toProjectVersionTrack(project, activeVersion))
+            }
+          }}
+          className="flex items-center gap-3 w-full px-4 py-3 rounded-lg bg-[var(--riff-surface-highest)] text-[var(--riff-text-primary)] font-medium text-sm hover:bg-[var(--riff-surface-high)] transition-colors"
+        >
+          <Music className="h-4 w-4" /> Play Latest Version
+        </button>
         <button 
           onClick={() => navigate(projectRoutes.studio(project.id))}
           className="flex items-center gap-3 w-full px-4 py-3 rounded-lg bg-gradient-to-r from-[var(--riff-accent)] to-[var(--riff-accent-focus)] text-white font-bold text-sm tracking-wide shadow-lg hover:shadow-xl transition-all active:scale-[0.98]"
@@ -99,6 +115,12 @@ export function LibraryInspector({ project }: LibraryInspectorProps) {
             <Download className="h-4 w-4" /> Export Project
           </button>
         )}
+        <button
+          onClick={onDelete}
+          className="flex items-center gap-3 w-full px-4 py-3 rounded-lg border border-red-500/20 bg-red-500/10 text-red-300 font-medium text-sm hover:bg-red-500/15 transition-colors"
+        >
+          <Download className="h-4 w-4 rotate-45" /> Delete Song
+        </button>
       </div>
 
       {/* Timestamps */}

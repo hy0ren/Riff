@@ -1,19 +1,25 @@
-import type { Project } from '@/domain/project'
+import type { PersistedProject } from '@/domain/project'
 import { Badge } from '@/components/ui/badge'
 import { 
-  Music, Layers, Heart, Play, Mic2, Globe
+  Music, Layers, Heart, Play, Mic2, Globe, Trash2
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { relativeTime, sourceLabel, statusColor, statusLabel } from '../lib/library-utils'
+import { usePlaybackStore } from '@/features/playback/store/use-playback-store'
+import { getProjectVersion } from '@/features/projects/lib/project-selectors'
+import { toProjectVersionTrack } from '@/features/playback/lib/playable-track'
 
 interface LibraryProjectRowProps {
-  project: Project
+  project: PersistedProject
   isSelected?: boolean
   onClick?: () => void
+  onDelete?: () => void
 }
 
-export function LibraryProjectRow({ project, isSelected, onClick }: LibraryProjectRowProps) {
+export function LibraryProjectRow({ project, isSelected, onClick, onDelete }: LibraryProjectRowProps) {
   const bp = project.blueprint
+  const setTrack = usePlaybackStore((state) => state.setTrack)
+  const activeVersion = getProjectVersion(project)
 
   return (
     <div
@@ -27,16 +33,25 @@ export function LibraryProjectRow({ project, isSelected, onClick }: LibraryProje
     >
       {/* Artwork */}
       <div className="relative h-12 w-12 shrink-0 rounded-lg overflow-hidden bg-[var(--riff-surface)]">
-        {project.coverUrl ? (
-          <img src={project.coverUrl} alt="" className="h-full w-full object-cover" />
+        {project.coverUrl ?? project.artUrl ? (
+          <img src={project.coverUrl ?? project.artUrl} alt="" className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center">
             <Music className="h-5 w-5 text-[var(--riff-text-faint)]" />
           </div>
         )}
-        <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/40 transition-colors">
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation()
+            if (activeVersion?.audioUrl) {
+              setTrack(toProjectVersionTrack(project, activeVersion))
+            }
+          }}
+          className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/40 transition-colors"
+        >
           <Play className="h-4 w-4 text-white opacity-0 group-hover:opacity-100 ml-0.5 fill-current transition-opacity" />
-        </div>
+        </button>
       </div>
 
       {/* Title & Source */}
@@ -93,6 +108,20 @@ export function LibraryProjectRow({ project, isSelected, onClick }: LibraryProje
       <div className="w-24 shrink-0 text-right text-xs text-[var(--riff-text-muted)]">
         {relativeTime(project.updatedAt)}
       </div>
+
+      {onDelete ? (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation()
+            onDelete()
+          }}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--riff-text-muted)] transition hover:bg-red-500/10 hover:text-red-300"
+          aria-label={`Delete ${project.title}`}
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      ) : null}
     </div>
   )
 }

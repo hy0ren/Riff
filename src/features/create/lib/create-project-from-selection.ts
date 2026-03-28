@@ -4,8 +4,24 @@ import { createSourceSetFromInputs } from '@/lib/studio-pipeline/source-assembly
 import { createStudioId, nowIso } from '@/lib/studio-pipeline/ids'
 import { normalizeProject } from '@/features/projects/lib/project-normalizers'
 
-function titleFromSelection(selectedTypes: SourceSelectionType[]): string {
-  const primary = selectedTypes[0] ?? 'track'
+export interface CreateSourceSelectionDraft {
+  type: SourceSelectionType
+  label?: string
+  description?: string
+  text?: string
+  audioDataUrl?: string
+  durationSeconds?: number
+  fileName?: string
+  fileFormat?: 'wav' | 'mp3' | 'webm' | 'ogg' | 'pdf' | 'midi' | 'musicxml' | 'txt'
+  spotifyUri?: string
+  artistName?: string
+  providerTrackName?: string
+  playlistName?: string
+  spotifyReferenceType?: 'track' | 'playlist'
+}
+
+function titleFromSelection(selectedSources: CreateSourceSelectionDraft[]): string {
+  const primary = selectedSources[0]?.type ?? 'track'
 
   switch (primary) {
     case 'hum':
@@ -27,8 +43,13 @@ function titleFromSelection(selectedTypes: SourceSelectionType[]): string {
   }
 }
 
-function buildSourceInput(projectId: string, type: SourceSelectionType, order: number): SourceInput {
+function buildSourceInput(
+  projectId: string,
+  selection: CreateSourceSelectionDraft,
+  order: number,
+): SourceInput {
   const createdAt = nowIso()
+  const type = selection.type
 
   switch (type) {
     case 'hum':
@@ -36,30 +57,48 @@ function buildSourceInput(projectId: string, type: SourceSelectionType, order: n
         id: createStudioId('src'),
         projectId,
         type: 'hum',
-        label: 'Hum Recording',
-        description: 'Lead with a hummed melodic idea.',
+        label: selection.label ?? 'Hum Recording',
+        description: selection.description ?? 'Lead with a hummed melodic idea.',
         iconName: 'Mic',
         createdAt,
         role: 'melodic',
-        provenance: 'recorded',
+        provenance: selection.audioDataUrl ? 'recorded' : 'recorded',
         isReference: false,
         interpretationStatus: 'pending',
-        durationSeconds: 12 + order * 2,
+        durationSeconds: selection.durationSeconds ?? 12 + order * 2,
+        audioUrl: selection.audioDataUrl,
+        rawAssetUrl: selection.audioDataUrl,
+        normalized: selection.audioDataUrl
+          ? {
+              durationSeconds: selection.durationSeconds,
+              fileName: selection.fileName,
+              fileFormat: selection.fileFormat,
+            }
+          : undefined,
       }
     case 'riff':
       return {
         id: createStudioId('src'),
         projectId,
         type: 'riff_audio',
-        label: 'Riff Upload',
-        description: 'Uploaded loop or instrumental riff.',
+        label: selection.label ?? 'Riff Upload',
+        description: selection.description ?? 'Uploaded loop or instrumental riff.',
         iconName: 'Music',
         createdAt,
         role: 'melodic',
-        provenance: 'uploaded',
+        provenance: selection.audioDataUrl ? 'uploaded' : 'uploaded',
         isReference: false,
         interpretationStatus: 'pending',
-        durationSeconds: 18 + order * 3,
+        durationSeconds: selection.durationSeconds ?? 18 + order * 3,
+        audioUrl: selection.audioDataUrl,
+        rawAssetUrl: selection.audioDataUrl,
+        normalized: selection.audioDataUrl
+          ? {
+              durationSeconds: selection.durationSeconds,
+              fileName: selection.fileName,
+              fileFormat: selection.fileFormat,
+            }
+          : undefined,
       }
     case 'lyrics':
       return {
@@ -74,7 +113,9 @@ function buildSourceInput(projectId: string, type: SourceSelectionType, order: n
         provenance: 'typed',
         isReference: false,
         interpretationStatus: 'attached',
-        text: 'Midnight hallway / city glow / hold the note and let it go',
+        text:
+          selection.text ??
+          'Midnight hallway / city glow / hold the note and let it go',
       }
     case 'chords':
       return {
@@ -89,7 +130,7 @@ function buildSourceInput(projectId: string, type: SourceSelectionType, order: n
         provenance: 'typed',
         isReference: false,
         interpretationStatus: 'attached',
-        text: 'Fm - Db - Ab - Eb',
+        text: selection.text ?? 'Fm - Db - Ab - Eb',
       }
     case 'sheet':
       return {
@@ -108,22 +149,47 @@ function buildSourceInput(projectId: string, type: SourceSelectionType, order: n
         fileFormat: 'pdf',
       }
     case 'spotify':
-      return {
-        id: createStudioId('src'),
-        projectId,
-        type: 'spotify_track_reference',
-        label: 'Spotify Reference',
-        description: 'Taste and vibe reference from Spotify.',
-        iconName: 'Compass',
-        createdAt,
-        role: 'reference',
-        provenance: 'spotify',
-        isReference: true,
-        interpretationStatus: 'attached',
-        spotifyUri: `spotify:track:${createStudioId('ref')}`,
-        artistName: 'Reference Artist',
-        providerTrackName: 'Reference Mood',
-      }
+      return selection.spotifyReferenceType === 'playlist'
+        ? {
+            id: createStudioId('src'),
+            projectId,
+            type: 'spotify_playlist_reference',
+            label: selection.label ?? selection.playlistName ?? 'Spotify Playlist',
+            description: selection.description ?? 'Playlist-based mood and taste reference.',
+            iconName: 'Compass',
+            createdAt,
+            role: 'reference',
+            provenance: 'spotify',
+            isReference: true,
+            interpretationStatus: 'attached',
+            spotifyUri: selection.spotifyUri ?? `spotify:playlist:${createStudioId('ref')}`,
+            playlistName: selection.playlistName ?? 'Reference Playlist',
+            normalized: {
+              providerName: 'Spotify',
+              providerTitle: selection.playlistName ?? 'Reference Playlist',
+            },
+          }
+        : {
+            id: createStudioId('src'),
+            projectId,
+            type: 'spotify_track_reference',
+            label: selection.label ?? selection.providerTrackName ?? 'Spotify Reference',
+            description: selection.description ?? 'Taste and vibe reference from Spotify.',
+            iconName: 'Compass',
+            createdAt,
+            role: 'reference',
+            provenance: 'spotify',
+            isReference: true,
+            interpretationStatus: 'attached',
+            spotifyUri: selection.spotifyUri ?? `spotify:track:${createStudioId('ref')}`,
+            artistName: selection.artistName ?? 'Reference Artist',
+            providerTrackName: selection.providerTrackName ?? 'Reference Mood',
+            normalized: {
+              providerName: 'Spotify',
+              providerTitle: selection.providerTrackName ?? 'Reference Mood',
+              providerArtist: selection.artistName ?? 'Reference Artist',
+            },
+          }
     case 'remix':
       return {
         id: createStudioId('src'),
@@ -142,15 +208,19 @@ function buildSourceInput(projectId: string, type: SourceSelectionType, order: n
   }
 }
 
-export function createProjectFromSelection(selectedTypes: SourceSelectionType[]): PersistedProject {
+export function createProjectFromSelection(
+  selectedSources: CreateSourceSelectionDraft[],
+): PersistedProject {
   const projectId = createStudioId('proj')
-  const sourceInputs = selectedTypes.map((type, order) => buildSourceInput(projectId, type, order))
+  const sourceInputs = selectedSources.map((selection, order) =>
+    buildSourceInput(projectId, selection, order),
+  )
   const sourceSet = createSourceSetFromInputs(projectId, sourceInputs)
   const createdAt = nowIso()
 
   const project: Project = {
     id: projectId,
-    title: titleFromSelection(selectedTypes),
+    title: titleFromSelection(selectedSources),
     createdAt,
     updatedAt: createdAt,
     status: 'draft',

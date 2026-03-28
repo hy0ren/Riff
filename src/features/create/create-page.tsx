@@ -1,26 +1,48 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { LucideIcon } from 'lucide-react'
-import { PageFrame } from '@/components/layout/page-frame'
-import { 
-  Mic, 
-  Music, 
-  PlusCircle, 
-  FileText, 
-  Compass, 
-  Share, 
-  ChevronRight, 
+import {
+  ChevronRight,
+  Compass,
+  FileText,
+  Loader2,
+  Mic,
+  Music,
+  PauseCircle,
+  PlusCircle,
+  Share,
   Sparkles,
+  Type,
+  Upload,
   X,
-  Type
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { PageFrame } from '@/components/layout/page-frame'
 import { SourceCard } from '@/components/shared/source-card'
-import type { SourceSelectionType } from '@/domain/source-input'
 import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import type { SourceSelectionType } from '@/domain/source-input'
 import { projectRoutes } from '@/features/projects/lib/project-routes'
 import { useProjectStore } from '@/features/projects/store/use-project-store'
-import { createProjectFromSelection } from './lib/create-project-from-selection'
+import { useStudioStore } from '@/features/studio/store/use-studio-store'
+import { cn } from '@/lib/utils'
+import {
+  beginSpotifyAuthorization,
+} from '@/lib/providers/spotify-gateway'
+import {
+  blobToDataUrl,
+  fileToDataUrl,
+  inferAudioFileFormat,
+  measureAudioDuration,
+} from './lib/audio-assets'
+import {
+  createProjectFromSelection,
+  type CreateSourceSelectionDraft,
+} from './lib/create-project-from-selection'
+import {
+  getSpotifyConnectionStatus,
+  useIntegrationStore,
+} from '@/features/integrations/store/use-integration-store'
 
 interface SourceOption {
   type: SourceSelectionType
@@ -29,73 +51,330 @@ interface SourceOption {
   icon: LucideIcon
 }
 
+type AudioSelectionType = 'hum' | 'riff'
+type SourceDraftMap = Partial<Record<SourceSelectionType, CreateSourceSelectionDraft>>
+
 const SOURCE_OPTIONS: SourceOption[] = [
-  { 
-    type: 'hum', 
-    label: 'Record a Hum', 
-    description: 'Lead with a hummed or sung melody idea.', 
-    icon: Mic 
+  {
+    type: 'hum',
+    label: 'Record a Hum',
+    description: 'Capture a melody live or upload a vocal memo for Gemini to decode.',
+    icon: Mic,
   },
-  { 
-    type: 'riff', 
-    label: 'Upload a Riff', 
-    description: 'Import an audio file, loop, or sample.', 
-    icon: Music 
+  {
+    type: 'riff',
+    label: 'Upload a Riff',
+    description: 'Record or import a guitar phrase, loop, or instrumental idea.',
+    icon: Music,
   },
-  { 
-    type: 'lyrics', 
-    label: 'Write Lyrics', 
-    description: 'Build a song around specific words.', 
-    icon: FileText 
+  {
+    type: 'lyrics',
+    label: 'Write Lyrics',
+    description: 'Build a song around specific words.',
+    icon: FileText,
   },
-  { 
-    type: 'chords', 
-    label: 'Chord Sequence', 
-    description: 'Define the harmonic spine of the track.', 
-    icon: Type 
+  {
+    type: 'chords',
+    label: 'Chord Sequence',
+    description: 'Define the harmonic spine of the track.',
+    icon: Type,
   },
-  { 
-    type: 'sheet', 
-    label: 'Sheet Music', 
-    description: 'Upload notation or MIDI scores.', 
-    icon: PlusCircle 
+  {
+    type: 'sheet',
+    label: 'Sheet Music',
+    description: 'Upload notation or MIDI scores.',
+    icon: PlusCircle,
   },
-  { 
-    type: 'spotify', 
-    label: 'Spotify Vibe', 
-    description: 'Use a track as a reference for mood.', 
-    icon: Compass 
+  {
+    type: 'spotify',
+    label: 'Spotify Vibe',
+    description: 'Use a track as a reference for mood.',
+    icon: Compass,
   },
-  { 
-    type: 'remix', 
-    label: 'Remix Track', 
-    description: 'Rebuild an existing project or song.', 
-    icon: Share 
+  {
+    type: 'remix',
+    label: 'Remix Track',
+    description: 'Rebuild an existing project or song.',
+    icon: Share,
   },
 ]
+
+function defaultDraftForType(type: SourceSelectionType): CreateSourceSelectionDraft {
+  switch (type) {
+    case 'hum':
+      return {
+        type,
+        label: 'Hum Recording',
+        description: 'Lead with a hummed melodic idea.',
+      }
+    case 'riff':
+      return {
+        type,
+        label: 'Riff Input',
+        description: 'Import a riff, loop, or guitar phrase.',
+      }
+    case 'lyrics':
+      return {
+        type,
+        label: 'Lyric Draft',
+        description: 'Words and lyrical direction for the song.',
+        text: 'Midnight hallway / city glow / hold the note and let it go',
+      }
+    case 'chords':
+      return {
+        type,
+        label: 'Chord Progression',
+        description: 'Harmonic spine for the arrangement.',
+        text: 'Fm - Db - Ab - Eb',
+      }
+    case 'sheet':
+      return {
+        type,
+        label: 'Sheet Music Upload',
+        description: 'Notation or lead sheet reference.',
+      }
+    case 'spotify':
+      return {
+        type,
+        label: 'Spotify Reference',
+        description: 'Taste and vibe reference from Spotify.',
+      }
+    case 'remix':
+      return {
+        type,
+        label: 'Remix Source',
+        description: 'Rework an existing project into a new version.',
+      }
+  }
+}
+
+function isAudioSelectionType(type: SourceSelectionType): type is AudioSelectionType {
+  return type === 'hum' || type === 'riff'
+}
+
+function formatDuration(durationSeconds?: number): string {
+  if (!durationSeconds || durationSeconds <= 0) {
+    return '0:00'
+  }
+
+  const minutes = Math.floor(durationSeconds / 60)
+  const seconds = Math.round(durationSeconds % 60)
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`
+}
 
 export function CreatePage() {
   const navigate = useNavigate()
   const [selectedTypes, setSelectedTypes] = useState<SourceSelectionType[]>([])
+  const [sourceDrafts, setSourceDrafts] = useState<SourceDraftMap>({})
+  const [isCreating, setIsCreating] = useState(false)
+  const [activeRecordingType, setActiveRecordingType] = useState<AudioSelectionType | null>(null)
+  const [recordingError, setRecordingError] = useState<string | null>(null)
   const upsertProject = useProjectStore((state) => state.upsertProject)
+  const spotify = useIntegrationStore((state) => state.spotify)
+  const setSpotifyAuth = useIntegrationStore((state) => state.setSpotifyAuth)
+  const recorderRef = useRef<MediaRecorder | null>(null)
+  const recorderChunksRef = useRef<Blob[]>([])
+  const recorderStreamRef = useRef<MediaStream | null>(null)
+
+  const releaseRecorderStream = () => {
+    recorderStreamRef.current?.getTracks().forEach((track) => track.stop())
+    recorderStreamRef.current = null
+  }
+
+  useEffect(() => {
+    return () => {
+      recorderRef.current?.stop()
+      releaseRecorderStream()
+    }
+  }, [])
+
+  const setDraft = (
+    type: SourceSelectionType,
+    updater: (draft: CreateSourceSelectionDraft) => CreateSourceSelectionDraft,
+  ) => {
+    setSourceDrafts((current) => {
+      const previousDraft = current[type] ?? defaultDraftForType(type)
+      return {
+        ...current,
+        [type]: updater(previousDraft),
+      }
+    })
+  }
 
   const toggleSource = (type: SourceSelectionType) => {
-    setSelectedTypes(prev => 
-      prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]
-    )
+    setSelectedTypes((current) => {
+      if (current.includes(type)) {
+        return current.filter((candidate) => candidate !== type)
+      }
+
+      return [...current, type]
+    })
+
+    setSourceDrafts((current) => ({
+      ...current,
+      [type]: current[type] ?? defaultDraftForType(type),
+    }))
+  }
+
+  const handleAudioUpload = async (type: AudioSelectionType, file: File) => {
+    setRecordingError(null)
+
+    const audioDataUrl = await fileToDataUrl(file)
+    const durationSeconds = await measureAudioDuration(audioDataUrl)
+    const fileFormat = inferAudioFileFormat(file.name, file.type)
+
+    setDraft(type, (draft) => ({
+      ...draft,
+      audioDataUrl,
+      durationSeconds,
+      fileName: file.name,
+      fileFormat,
+      label: draft.label ?? (type === 'hum' ? 'Hum Recording' : 'Riff Input'),
+      description:
+        type === 'hum'
+          ? 'Recorded vocal melody for Gemini analysis.'
+          : 'Uploaded riff for Gemini rhythm and tonal analysis.',
+    }))
+  }
+
+  const handleStartRecording = async (type: AudioSelectionType) => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setRecordingError('Recording is not supported in this environment.')
+      return
+    }
+
+    setRecordingError(null)
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const preferredMimeType =
+        MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+          ? 'audio/webm;codecs=opus'
+          : MediaRecorder.isTypeSupported('audio/webm')
+            ? 'audio/webm'
+            : ''
+
+      const recorder = preferredMimeType
+        ? new MediaRecorder(stream, { mimeType: preferredMimeType })
+        : new MediaRecorder(stream)
+
+      recorderChunksRef.current = []
+      recorderStreamRef.current = stream
+      recorderRef.current = recorder
+      setActiveRecordingType(type)
+
+      recorder.addEventListener('dataavailable', (event) => {
+        if (event.data.size > 0) {
+          recorderChunksRef.current.push(event.data)
+        }
+      })
+
+      recorder.addEventListener('stop', async () => {
+        try {
+          const audioBlob = new Blob(recorderChunksRef.current, {
+            type: recorder.mimeType || 'audio/webm',
+          })
+          const audioDataUrl = await blobToDataUrl(audioBlob)
+          const durationSeconds = await measureAudioDuration(audioDataUrl)
+          const fileFormat = inferAudioFileFormat(undefined, audioBlob.type)
+          const recordedFileName = `${type}-${Date.now()}.${fileFormat ?? 'webm'}`
+
+          setDraft(type, (draft) => ({
+            ...draft,
+            audioDataUrl,
+            durationSeconds,
+            fileName: recordedFileName,
+            fileFormat,
+            label: draft.label ?? (type === 'hum' ? 'Hum Recording' : 'Riff Input'),
+            description:
+              type === 'hum'
+                ? 'Live-recorded melodic phrase for Gemini analysis.'
+                : 'Live-recorded riff for Gemini rhythm and tonal analysis.',
+          }))
+        } catch (error) {
+          setRecordingError(
+            error instanceof Error ? error.message : 'Failed to process recorded audio.',
+          )
+        } finally {
+          recorderRef.current = null
+          recorderChunksRef.current = []
+          releaseRecorderStream()
+          setActiveRecordingType(null)
+        }
+      })
+
+      recorder.start()
+    } catch (error) {
+      releaseRecorderStream()
+      setActiveRecordingType(null)
+      setRecordingError(
+        error instanceof Error ? error.message : 'Microphone access failed.',
+      )
+    }
+  }
+
+  const handleStopRecording = () => {
+    if (!recorderRef.current) {
+      return
+    }
+
+    recorderRef.current.stop()
   }
 
   const hasSelection = selectedTypes.length > 0
+  const spotifyConnectionStatus = getSpotifyConnectionStatus(spotify.auth)
+  const spotifyConnected = spotifyConnectionStatus === 'connected'
+  const requiresAudioInput = selectedTypes.some((type) => isAudioSelectionType(type))
+  const missingAudioInput = selectedTypes.some(
+    (type) => isAudioSelectionType(type) && !sourceDrafts[type]?.audioDataUrl,
+  )
+  const spotifyRequiredButUnlinked =
+    selectedTypes.includes('spotify') &&
+    (!spotifyConnected || (!spotify.topTracks.length && !spotify.playlists.length))
+  const canContinue =
+    hasSelection &&
+    !isCreating &&
+    !activeRecordingType &&
+    (!requiresAudioInput || !missingAudioInput) &&
+    !spotifyRequiredButUnlinked
+
+  const selectedSources = selectedTypes.map(
+    (type) => sourceDrafts[type] ?? defaultDraftForType(type),
+  )
+
+  const handleContinue = async () => {
+    if (!canContinue) {
+      return
+    }
+
+    setIsCreating(true)
+    const project = createProjectFromSelection(selectedSources)
+    upsertProject(project)
+
+    try {
+      await useStudioStore.getState().refreshInterpretation(project.id)
+    } catch {
+      // The Studio will still open with the local fallback interpretation.
+    }
+
+    navigate(projectRoutes.studio(project.id))
+  }
+
+  const handleConnectSpotify = async () => {
+    const authStart = await beginSpotifyAuthorization()
+    setSpotifyAuth(authStart.pendingAuth)
+    window.location.assign(authStart.authorizeUrl)
+  }
 
   return (
-    <PageFrame 
-      title="Create" 
-      subtitle="Select one or more sources to begin your song blueprint"
-      className="pb-[120px]" // Space for bottom canvas
+    <PageFrame
+      title="Create"
+      subtitle="Attach real source material, let Gemini decode it, and open Studio with a prefilled draft."
+      className="pb-[120px]"
     >
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {SOURCE_OPTIONS.map(option => (
-          <SourceCard 
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {SOURCE_OPTIONS.map((option) => (
+          <SourceCard
             key={option.type}
             type={option.type}
             label={option.label}
@@ -106,48 +385,439 @@ export function CreatePage() {
           />
         ))}
 
-        {/* Informational Empty card */}
-        <div className="flex flex-col items-center justify-center gap-2 p-6 rounded-2xl border-2 border-dashed border-[var(--riff-surface-mid)] bg-[rgba(255,255,255,0.02)]">
-          <p className="text-[11px] text-center text-[var(--riff-text-faint)] leading-relaxed">
-            Mix multiple sources for best results.<br />
-            Example: <strong>Hum + Spotify Reference</strong>
+        <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[var(--riff-surface-mid)] bg-[rgba(255,255,255,0.02)] p-6">
+          <p className="text-center text-[11px] leading-relaxed text-[var(--riff-text-faint)]">
+            Real audio works best now.
+            <br />
+            Try <strong>Hum + Chords</strong> or <strong>Riff + Lyrics</strong>.
           </p>
         </div>
       </div>
 
-      {/* Assembly Canvas / Selection Bar (Persistent at bottom) */}
-      <div className={cn(
-        "fixed bottom-24 left-1/2 -translate-x-1/2 w-[calc(100%-48px)] max-w-4xl",
-        "bg-[var(--riff-surface-highest)] border border-[var(--riff-surface-high)] rounded-2xl p-4",
-        "shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-50",
-        "transition-all duration-500 ease-in-out",
-        hasSelection ? "translate-y-0 opacity-100" : "translate-y-[200%] opacity-0 pointer-events-none"
-      )}>
+      {(selectedTypes.length > 0 || recordingError) && (
+        <div className="mt-8 grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
+          <div className="space-y-5">
+            {selectedTypes
+              .filter((type) => isAudioSelectionType(type))
+              .map((type) => {
+                const option = SOURCE_OPTIONS.find((candidate) => candidate.type === type)
+                const draft = sourceDrafts[type] ?? defaultDraftForType(type)
+                const isRecording = activeRecordingType === type
+
+                return (
+                  <section
+                    key={type}
+                    className="rounded-2xl border border-[var(--riff-surface-high)] bg-[var(--riff-surface-highest)]/70 p-5"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--riff-accent-light)]">
+                          Audio Source
+                        </p>
+                        <h3 className="font-display text-xl text-[var(--riff-text-primary)]">
+                          {option?.label}
+                        </h3>
+                        <p className="max-w-xl text-sm text-[var(--riff-text-muted)]">
+                          Gemini will inspect the audio itself and prefill tempo, tonal center,
+                          mood, energy, instrumentation lean, and melodic direction.
+                        </p>
+                      </div>
+                      <div className="rounded-full border border-[var(--riff-surface-high)] bg-[var(--riff-surface-low)] px-3 py-1 text-[11px] font-semibold text-[var(--riff-text-secondary)]">
+                        {draft.audioDataUrl ? 'Ready' : 'Audio Required'}
+                      </div>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap items-center gap-3">
+                      <label htmlFor={`upload-${type}`}>
+                        <input
+                          id={`upload-${type}`}
+                          type="file"
+                          accept="audio/*"
+                          className="hidden"
+                          onChange={(event) => {
+                            const file = event.target.files?.[0]
+                            if (!file) {
+                              return
+                            }
+
+                            void handleAudioUpload(type, file)
+                            event.currentTarget.value = ''
+                          }}
+                        />
+                        <span className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-[var(--riff-surface-high)] bg-[var(--riff-surface-low)] px-4 py-2 text-sm font-semibold text-[var(--riff-text-primary)] transition hover:border-[var(--riff-accent)] hover:text-[var(--riff-accent-light)]">
+                          <Upload className="h-4 w-4" />
+                          Upload Audio
+                        </span>
+                      </label>
+
+                      {isRecording ? (
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          className="gap-2 rounded-xl"
+                          onClick={handleStopRecording}
+                        >
+                          <PauseCircle className="h-4 w-4" />
+                          Stop Recording
+                        </Button>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="gap-2 rounded-xl"
+                          onClick={() => void handleStartRecording(type)}
+                          disabled={Boolean(activeRecordingType)}
+                        >
+                          <Mic className="h-4 w-4" />
+                          Record Live Input
+                        </Button>
+                      )}
+
+                      {isRecording && (
+                        <span className="inline-flex items-center gap-2 text-sm font-medium text-rose-300">
+                          <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-rose-400" />
+                          Recording now
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="mt-4 grid gap-3 md:grid-cols-2">
+                      <Input
+                        value={draft.label ?? ''}
+                        onChange={(event) =>
+                          setDraft(type, (currentDraft) => ({
+                            ...currentDraft,
+                            label: event.target.value,
+                          }))
+                        }
+                        className="border-[var(--riff-surface-high)] bg-[var(--riff-surface)]"
+                        placeholder="Source name"
+                      />
+                      <Input
+                        value={draft.description ?? ''}
+                        onChange={(event) =>
+                          setDraft(type, (currentDraft) => ({
+                            ...currentDraft,
+                            description: event.target.value,
+                          }))
+                        }
+                        className="border-[var(--riff-surface-high)] bg-[var(--riff-surface)]"
+                        placeholder="What should Gemini listen for?"
+                      />
+                    </div>
+
+                    {draft.audioDataUrl ? (
+                      <div className="mt-4 rounded-2xl border border-[var(--riff-surface-high)] bg-[var(--riff-surface-low)] p-4">
+                        <div className="mb-3 flex items-center justify-between gap-3 text-sm">
+                          <div>
+                            <p className="font-semibold text-[var(--riff-text-primary)]">
+                              {draft.fileName ?? 'Captured audio'}
+                            </p>
+                            <p className="text-[var(--riff-text-muted)]">
+                              {formatDuration(draft.durationSeconds)} • {draft.fileFormat ?? 'audio'}
+                            </p>
+                          </div>
+                          <span className="rounded-full bg-emerald-500/15 px-2.5 py-1 text-[11px] font-semibold text-emerald-300">
+                            Ready for Gemini
+                          </span>
+                        </div>
+                        <audio controls src={draft.audioDataUrl} className="w-full" />
+                      </div>
+                    ) : (
+                      <div className="mt-4 rounded-2xl border border-dashed border-[var(--riff-surface-high)] bg-[var(--riff-surface-low)] px-4 py-5 text-sm text-[var(--riff-text-muted)]">
+                        Upload or record audio to let Gemini decode this source and seed the
+                        Studio draft automatically.
+                      </div>
+                    )}
+                  </section>
+                )
+              })}
+
+            {selectedTypes.includes('lyrics') && (
+              <section className="rounded-2xl border border-[var(--riff-surface-high)] bg-[var(--riff-surface-highest)]/70 p-5">
+                <h3 className="font-display text-xl text-[var(--riff-text-primary)]">Lyrics</h3>
+                <p className="mt-1 text-sm text-[var(--riff-text-muted)]">
+                  Add lyrical direction now or let the audio inference establish the musical frame first.
+                </p>
+                <Textarea
+                  value={sourceDrafts.lyrics?.text ?? defaultDraftForType('lyrics').text ?? ''}
+                  rows={6}
+                  onChange={(event) =>
+                    setDraft('lyrics', (draft) => ({
+                      ...draft,
+                      text: event.target.value,
+                    }))
+                  }
+                  className="mt-4 border-[var(--riff-surface-high)] bg-[var(--riff-surface)]"
+                />
+              </section>
+            )}
+
+            {selectedTypes.includes('chords') && (
+              <section className="rounded-2xl border border-[var(--riff-surface-high)] bg-[var(--riff-surface-highest)]/70 p-5">
+                <h3 className="font-display text-xl text-[var(--riff-text-primary)]">Chord Sequence</h3>
+                <p className="mt-1 text-sm text-[var(--riff-text-muted)]">
+                  Use a simple progression and Gemini will blend it with the melodic or rhythmic source.
+                </p>
+                <Textarea
+                  value={sourceDrafts.chords?.text ?? defaultDraftForType('chords').text ?? ''}
+                  rows={4}
+                  onChange={(event) =>
+                    setDraft('chords', (draft) => ({
+                      ...draft,
+                      text: event.target.value,
+                    }))
+                  }
+                  className="mt-4 border-[var(--riff-surface-high)] bg-[var(--riff-surface)]"
+                />
+              </section>
+            )}
+
+            {selectedTypes.includes('spotify') && (
+              <section className="rounded-2xl border border-[var(--riff-surface-high)] bg-[var(--riff-surface-highest)]/70 p-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#1DB954]">
+                      Spotify Reference
+                    </p>
+                    <h3 className="font-display text-xl text-[var(--riff-text-primary)]">
+                      Use a real linked reference
+                    </h3>
+                    <p className="mt-1 text-sm text-[var(--riff-text-muted)]">
+                      Choose one of your synced top tracks or playlists so the Studio source set uses a real Spotify URI instead of a placeholder.
+                    </p>
+                  </div>
+                  <div className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
+                    spotifyConnected
+                      ? 'bg-[#1DB954]/15 text-[#82f0aa]'
+                      : 'bg-amber-500/15 text-amber-200'
+                  }`}>
+                    {spotifyConnected ? 'Connected' : spotifyConnectionStatus === 'auth_required' ? 'Reconnect required' : 'Not connected'}
+                  </div>
+                </div>
+
+                {!spotifyConnected ? (
+                  <div className="mt-4 rounded-2xl border border-dashed border-[var(--riff-surface-high)] bg-[var(--riff-surface-low)] p-4">
+                    <p className="text-sm text-[var(--riff-text-muted)]">
+                      Spotify is not linked yet, so this source would otherwise be a stub. Connect it here or from Settings before continuing.
+                    </p>
+                    <div className="mt-3 flex gap-3">
+                      <Button type="button" onClick={() => void handleConnectSpotify()}>
+                        Connect Spotify
+                      </Button>
+                      <Button type="button" variant="outline" onClick={() => navigate('/settings')}>
+                        Open Settings
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-4 space-y-4">
+                    <div>
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--riff-text-muted)]">
+                        Top Tracks
+                      </p>
+                      <div className="grid gap-2">
+                        {spotify.topTracks.slice(0, 4).map((track) => {
+                          const isSelected = sourceDrafts.spotify?.spotifyUri === track.uri
+                          return (
+                            <button
+                              key={track.id}
+                              type="button"
+                              onClick={() =>
+                                setDraft('spotify', (draft) => ({
+                                  ...draft,
+                                  spotifyReferenceType: 'track',
+                                  spotifyUri: track.uri,
+                                  providerTrackName: track.title,
+                                  artistName: track.artistName,
+                                  playlistName: undefined,
+                                  label: track.title,
+                                  description: `Spotify track reference by ${track.artistName}`,
+                                }))
+                              }
+                              className={`flex items-center justify-between rounded-xl border px-3 py-2 text-left transition ${
+                                isSelected
+                                  ? 'border-[#1DB954]/50 bg-[#1DB954]/10'
+                                  : 'border-[var(--riff-surface-high)] bg-[var(--riff-surface-low)]'
+                              }`}
+                            >
+                              <div>
+                                <p className="text-sm font-semibold text-[var(--riff-text-primary)]">
+                                  {track.title}
+                                </p>
+                                <p className="text-xs text-[var(--riff-text-muted)]">{track.artistName}</p>
+                              </div>
+                              {isSelected ? (
+                                <span className="text-[11px] font-semibold text-[#82f0aa]">Selected</span>
+                              ) : null}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--riff-text-muted)]">
+                        Playlists
+                      </p>
+                      <div className="grid gap-2">
+                        {spotify.playlists.slice(0, 4).map((playlist) => {
+                          const isSelected = sourceDrafts.spotify?.spotifyUri === playlist.uri
+                          return (
+                            <button
+                              key={playlist.id}
+                              type="button"
+                              onClick={() =>
+                                setDraft('spotify', (draft) => ({
+                                  ...draft,
+                                  spotifyReferenceType: 'playlist',
+                                  spotifyUri: playlist.uri,
+                                  playlistName: playlist.name,
+                                  providerTrackName: undefined,
+                                  artistName: undefined,
+                                  label: playlist.name,
+                                  description: `Spotify playlist reference • ${playlist.trackCount} tracks`,
+                                }))
+                              }
+                              className={`flex items-center justify-between rounded-xl border px-3 py-2 text-left transition ${
+                                isSelected
+                                  ? 'border-[#1DB954]/50 bg-[#1DB954]/10'
+                                  : 'border-[var(--riff-surface-high)] bg-[var(--riff-surface-low)]'
+                              }`}
+                            >
+                              <div>
+                                <p className="text-sm font-semibold text-[var(--riff-text-primary)]">
+                                  {playlist.name}
+                                </p>
+                                <p className="text-xs text-[var(--riff-text-muted)]">
+                                  {playlist.trackCount} tracks
+                                </p>
+                              </div>
+                              {isSelected ? (
+                                <span className="text-[11px] font-semibold text-[#82f0aa]">Selected</span>
+                              ) : null}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+
+                    {!sourceDrafts.spotify?.spotifyUri && (
+                      <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
+                        Choose a real linked track or playlist to use Spotify as an actual source.
+                      </div>
+                    )}
+                  </div>
+                )}
+              </section>
+            )}
+          </div>
+
+          <aside className="rounded-2xl border border-[var(--riff-surface-high)] bg-[var(--riff-surface-highest)]/70 p-5">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--riff-accent-light)]">
+              Draft Payload
+            </p>
+            <h3 className="mt-2 font-display text-2xl text-[var(--riff-text-primary)]">
+              Studio will open prefilled
+            </h3>
+            <p className="mt-2 text-sm text-[var(--riff-text-muted)]">
+              Selected audio is passed into Gemini interpretation before Studio opens. That
+              derived blueprint becomes the initial editable draft.
+            </p>
+
+            <div className="mt-5 flex flex-col gap-2">
+              {selectedSources.map((source) => (
+                <div
+                  key={source.type}
+                  className="flex items-center justify-between rounded-xl border border-[var(--riff-surface-high)] bg-[var(--riff-surface-low)] px-3 py-2"
+                >
+                  <div>
+                    <p className="text-sm font-semibold text-[var(--riff-text-primary)]">
+                      {source.label ?? defaultDraftForType(source.type).label}
+                    </p>
+                    <p className="text-xs text-[var(--riff-text-muted)]">
+                      {isAudioSelectionType(source.type)
+                        ? source.audioDataUrl
+                          ? `${formatDuration(source.durationSeconds)} ready for analysis`
+                          : 'waiting for audio'
+                        : source.type === 'spotify'
+                          ? source.spotifyUri
+                            ? 'linked Spotify reference'
+                            : 'waiting for Spotify selection'
+                        : source.text
+                          ? 'text attached'
+                          : 'metadata source'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => toggleSource(source.type)}
+                    className="rounded-md p-1 text-[var(--riff-text-faint)] transition hover:text-[var(--riff-text-primary)]"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {recordingError && (
+              <div className="mt-5 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">
+                {recordingError}
+              </div>
+            )}
+
+            {missingAudioInput && (
+              <div className="mt-5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
+                Hum and riff sources need an actual recording or uploaded file before Studio can
+                infer the blueprint.
+              </div>
+            )}
+
+            {spotifyRequiredButUnlinked && (
+              <div className="mt-5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
+                Spotify is selected, but no linked track or playlist is attached yet.
+              </div>
+            )}
+          </aside>
+        </div>
+      )}
+
+      <div
+        className={cn(
+          'fixed bottom-24 left-1/2 z-50 w-[calc(100%-48px)] max-w-4xl -translate-x-1/2 rounded-2xl border border-[var(--riff-surface-high)] bg-[var(--riff-surface-highest)] p-4 shadow-[0_20px_50px_rgba(0,0,0,0.5)] transition-all duration-500 ease-in-out',
+          hasSelection ? 'translate-y-0 opacity-100' : 'translate-y-[200%] opacity-0 pointer-events-none',
+        )}
+      >
         <div className="flex items-center gap-6">
           <div className="flex-1 overflow-hidden">
-            <div className="flex items-center gap-2 mb-1.5">
+            <div className="mb-1.5 flex items-center gap-2">
               <Sparkles className="h-3.5 w-3.5 text-[var(--riff-accent-light)]" />
               <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--riff-accent-light)]">
                 Synthesis Canvas
               </span>
             </div>
-            
+
             <div className="flex flex-wrap items-center gap-2">
               {selectedTypes.length === 0 ? (
                 <span className="text-xs text-[var(--riff-text-faint)]">Select inputs above...</span>
               ) : (
-                selectedTypes.map(type => {
-                  const option = SOURCE_OPTIONS.find(o => o.type === type)
+                selectedSources.map((source) => {
+                  const option = SOURCE_OPTIONS.find((candidate) => candidate.type === source.type)
                   return (
-                    <div 
-                      key={type} 
-                      className="flex items-center gap-2 bg-[var(--riff-surface-low)] border border-[var(--riff-surface-mid)] py-1.5 px-3 rounded-lg animate-in fade-in slide-in-from-left-2"
+                    <div
+                      key={source.type}
+                      className="animate-in fade-in slide-in-from-left-2 flex items-center gap-2 rounded-lg border border-[var(--riff-surface-mid)] bg-[var(--riff-surface-low)] px-3 py-1.5"
                     >
                       {option && <option.icon className="h-3.5 w-3.5 text-[var(--riff-accent-light)]" />}
-                      <span className="text-xs font-semibold text-[var(--riff-text-primary)]">{option?.label}</span>
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); toggleSource(type) }} 
-                        className="p-0.5 hover:text-white text-[var(--riff-text-faint)] transition-colors"
+                      <span className="text-xs font-semibold text-[var(--riff-text-primary)]">
+                        {option?.label}
+                      </span>
+                      <button
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          toggleSource(source.type)
+                        }}
+                        className="p-0.5 text-[var(--riff-text-faint)] transition-colors hover:text-white"
                       >
                         <X className="h-3 w-3" />
                       </button>
@@ -159,22 +829,35 @@ export function CreatePage() {
           </div>
 
           <div className="flex shrink-0 items-center gap-3">
-            <div className="text-right hidden sm:block">
-              <p className="text-[10px] text-[var(--riff-text-muted)] font-medium">Ready to Assemble?</p>
-              <p className="text-[11px] text-[var(--riff-text-primary)] font-bold">{selectedTypes.length} Inputs Selected</p>
+            <div className="hidden text-right sm:block">
+              <p className="text-[10px] font-medium text-[var(--riff-text-muted)]">
+                {missingAudioInput
+                  ? 'Attach audio first'
+                  : spotifyRequiredButUnlinked
+                    ? 'Choose a Spotify reference'
+                    : 'Ready to Assemble?'}
+              </p>
+              <p className="text-[11px] font-bold text-[var(--riff-text-primary)]">
+                {selectedTypes.length} Input{selectedTypes.length === 1 ? '' : 's'} Selected
+              </p>
             </div>
-            
+
             <Button
-              className="h-12 px-6 rounded-xl font-bold bg-[var(--riff-accent)] hover:bg-[var(--riff-accent-light)] transition-all shadow-[0_0_20px_var(--riff-glow)]"
-              disabled={!hasSelection}
-              onClick={() => {
-                const project = createProjectFromSelection(selectedTypes)
-                upsertProject(project)
-                navigate(projectRoutes.studio(project.id))
-              }}
+              className="h-12 rounded-xl bg-[var(--riff-accent)] px-6 font-bold shadow-[0_0_20px_var(--riff-glow)] transition-all hover:bg-[var(--riff-accent-light)]"
+              disabled={!canContinue}
+              onClick={() => void handleContinue()}
             >
-              Continue to Studio
-              <ChevronRight className="ml-1 h-4 w-4" />
+              {isCreating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Interpreting Input
+                </>
+              ) : (
+                <>
+                  Continue to Studio
+                  <ChevronRight className="ml-1 h-4 w-4" />
+                </>
+              )}
             </Button>
           </div>
         </div>

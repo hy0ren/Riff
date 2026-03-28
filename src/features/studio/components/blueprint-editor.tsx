@@ -161,6 +161,27 @@ export function BlueprintEditor({
             Vocal Design
           </AccordionTrigger>
           <AccordionContent className="space-y-4 pt-4 pb-2">
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant={draft.vocalsEnabled ? 'outline' : 'default'}
+                size="sm"
+                onClick={() => {
+                  onFieldChange('vocalsEnabled', false)
+                  onFieldChange('vocalStyle', '')
+                }}
+              >
+                Instrumental Mode
+              </Button>
+              <Button
+                type="button"
+                variant={draft.vocalsEnabled ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => onFieldChange('vocalsEnabled', true)}
+              >
+                Vocal-led
+              </Button>
+            </div>
             <div className="flex items-center justify-between rounded-lg bg-[var(--riff-surface-low)] p-3">
               <div>
                 <p className="text-sm font-medium text-[var(--riff-text-primary)]">Enable Vocals</p>
@@ -255,6 +276,7 @@ export function BlueprintEditor({
                 return (
                   <button
                     key={instrument}
+                    type="button"
                     onClick={() => onFieldChange(field, !active)}
                     className={`rounded-full border px-3 py-1.5 text-xs transition-colors ${
                       active
@@ -276,7 +298,7 @@ export function BlueprintEditor({
           Commit Blueprint Revision
         </Button>
         <Button className="w-full" onClick={onGenerate} disabled={isGenerating}>
-          {isGenerating ? 'Generating…' : 'Generate with Mock Lyria'}
+          {isGenerating ? 'Generating…' : 'Generate with Lyria'}
         </Button>
       </div>
     </div>

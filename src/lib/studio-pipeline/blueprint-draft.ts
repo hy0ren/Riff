@@ -136,13 +136,10 @@ export function createBlueprintDraft({
 }): BlueprintDraft {
   const createdAt = existingDraft?.createdAt ?? nowIso()
   const committedBlueprint = cloneBlueprint(activeBlueprint)
-  const interpretedBlueprint = cloneBlueprint(interpretation.derivedBlueprint)
-
   const draft: BlueprintDraft = {
     ...DEFAULT_BLUEPRINT_FIELDS,
     ...committedBlueprint,
     ...existingDraft,
-    ...interpretedBlueprint,
     id: existingDraft?.id ?? createStudioId('draft'),
     projectId,
     revision: existingDraft?.revision ?? activeBlueprint?.revision ?? 1,
@@ -162,6 +159,10 @@ export function createBlueprintDraft({
     conflictFields: interpretation.conflicts
       .map((conflict) => toDraftConflictField(conflict.field))
       .filter((field): field is BlueprintDraftField => Boolean(field)),
+    structure:
+      existingDraft?.structure ??
+      interpretation.derivedBlueprint.structure ??
+      activeBlueprint?.structure,
   }
 
   const fieldKeys: (keyof Blueprint)[] = [
