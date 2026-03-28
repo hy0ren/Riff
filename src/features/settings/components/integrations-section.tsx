@@ -164,12 +164,6 @@ export function IntegrationsSection() {
             onCheckedChange={(value) => setSpotifyPreference('useForCreationReferences', value)}
           />
           <PreferenceRow
-            title="Use for radio seeding"
-            description="Seed stations from your Spotify taste profile"
-            checked={spotify.useForRadioSeeding}
-            onCheckedChange={(value) => setSpotifyPreference('useForRadioSeeding', value)}
-          />
-          <PreferenceRow
             title="Sync playlists automatically"
             description="Keep imported playlists up to date in the background"
             checked={spotify.autoSyncPlaylists}

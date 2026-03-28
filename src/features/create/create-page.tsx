@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { LucideIcon } from 'lucide-react'
 import { PageFrame } from '@/components/layout/page-frame'
 import { 
   Mic, 
@@ -18,14 +19,14 @@ import type { SourceSelectionType } from '@/domain/source-input'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { projectRoutes } from '@/features/projects/lib/project-routes'
-import { getPrimaryProjectId } from '@/features/projects/lib/project-selectors'
-import { useProjectContextStore } from '@/features/projects/store/use-project-context-store'
+import { useProjectStore } from '@/features/projects/store/use-project-store'
+import { createProjectFromSelection } from './lib/create-project-from-selection'
 
 interface SourceOption {
   type: SourceSelectionType
   label: string
   description: string
-  icon: any
+  icon: LucideIcon
 }
 
 const SOURCE_OPTIONS: SourceOption[] = [
@@ -76,8 +77,7 @@ const SOURCE_OPTIONS: SourceOption[] = [
 export function CreatePage() {
   const navigate = useNavigate()
   const [selectedTypes, setSelectedTypes] = useState<SourceSelectionType[]>([])
-  const activeProjectId = useProjectContextStore((state) => state.activeProjectId)
-  const targetProjectId = activeProjectId ?? getPrimaryProjectId()
+  const upsertProject = useProjectStore((state) => state.upsertProject)
 
   const toggleSource = (type: SourceSelectionType) => {
     setSelectedTypes(prev => 
@@ -167,7 +167,11 @@ export function CreatePage() {
             <Button
               className="h-12 px-6 rounded-xl font-bold bg-[var(--riff-accent)] hover:bg-[var(--riff-accent-light)] transition-all shadow-[0_0_20px_var(--riff-glow)]"
               disabled={!hasSelection}
-              onClick={() => navigate(projectRoutes.studio(targetProjectId))}
+              onClick={() => {
+                const project = createProjectFromSelection(selectedTypes)
+                upsertProject(project)
+                navigate(projectRoutes.studio(project.id))
+              }}
             >
               Continue to Studio
               <ChevronRight className="ml-1 h-4 w-4" />

@@ -7,7 +7,7 @@ import {
   EXPLORE_RECENT_RELEASES,
   EXPLORE_TRENDING_TRACKS,
 } from '@/mocks/mock-data'
-import { Compass, Radio, Search, Wand2 } from 'lucide-react'
+import { BookOpen, Compass, Search, Wand2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { DiscoverTrackCard } from './components/discover-track-card'
 import { ExploreHero } from './components/explore-hero'
@@ -50,8 +50,13 @@ export function ExplorePage() {
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--riff-text-faint)]" />
               <Input placeholder="Search tracks, creators..." className="h-9 w-64 rounded-lg pl-9 text-sm" />
             </div>
-            <Button variant="outline" size="sm" className="h-9 gap-1.5 rounded-lg text-[12px]" onClick={() => navigate('/radio')}>
-              <Radio className="h-3.5 w-3.5" /> Start Radio
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 gap-1.5 rounded-lg text-[12px]"
+              onClick={() => navigate(projectRoutes.learn(resolveProjectId(EXPLORE_FEATURED_TRACK.id)))}
+            >
+              <BookOpen className="h-3.5 w-3.5" /> Open Learn
             </Button>
             <Button variant="outline" size="sm" className="h-9 gap-1.5 rounded-lg text-[12px]" onClick={() => navigate('/create')}>
               <Wand2 className="h-3.5 w-3.5" /> Remix a Track
@@ -65,7 +70,7 @@ export function ExplorePage() {
           onPlay={() => {}}
           onViewTrack={() => navigate(projectRoutes.details(resolveProjectId(EXPLORE_FEATURED_TRACK.id)))}
           onRemix={() => navigate('/create')}
-          onStartRadio={() => navigate('/radio')}
+          onOpenLearn={() => navigate(projectRoutes.learn(resolveProjectId(EXPLORE_FEATURED_TRACK.id)))}
         />
 
         {/* Trending Tracks */}

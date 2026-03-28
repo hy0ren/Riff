@@ -40,6 +40,13 @@ interface StudioState {
   compareMode: boolean
   selectedVersionIds: string[]
   hydrateProject: (projectId: string) => void
+  renameProject: (projectId: string, title: string) => void
+  updateSourceInputField: (
+    projectId: string,
+    sourceInputId: string,
+    field: 'label' | 'description' | 'text',
+    value: string,
+  ) => void
   clearGenerationError: () => void
   setQuickRefinementText: (value: string) => void
   refreshInterpretation: (projectId: string) => Promise<void>
@@ -234,6 +241,36 @@ export const useStudioStore = create<StudioState>((set) => ({
       selectedVersionIds: project.activeVersionId ? [project.activeVersionId] : [],
       generationError: null,
     })
+  },
+  renameProject: (projectId, title) => {
+    useProjectStore.getState().updateProject(projectId, (project) => ({
+      ...project,
+      title,
+      updatedAt: nowIso(),
+    }))
+  },
+  updateSourceInputField: (projectId, sourceInputId, field, value) => {
+    useProjectStore.getState().updateProject(projectId, (project) => ({
+      ...project,
+      sourceInputs: project.sourceInputs.map((sourceInput) => {
+        if (sourceInput.id !== sourceInputId) {
+          return sourceInput
+        }
+
+        if (field === 'text' && 'text' in sourceInput) {
+          return {
+            ...sourceInput,
+            text: value,
+          }
+        }
+
+        return {
+          ...sourceInput,
+          [field]: value,
+        }
+      }),
+      updatedAt: nowIso(),
+    }))
   },
   clearGenerationError: () => set({ generationError: null }),
   setQuickRefinementText: (value) => set({ quickRefinementText: value }),
@@ -506,6 +543,21 @@ export const useStudioStore = create<StudioState>((set) => ({
         duration: providerResult.durationSeconds || nextVersion.duration,
         isActive: runningRun.modifiers?.loadOnSuccess ?? true,
         notes: providerResult.summary,
+        audioUrl:
+          providerResult.artifactBase64 && providerResult.artifactMimeType
+            ? `data:${providerResult.artifactMimeType};base64,${providerResult.artifactBase64}`
+            : nextVersion.audioUrl,
+        exports:
+          providerResult.artifactBase64 && providerResult.artifactMimeType
+            ? [
+                {
+                  type: 'audio' as const,
+                  status: 'ready' as const,
+                  size: `${Math.max(1, Math.round(providerResult.artifactBase64.length / 1024))}KB`,
+                  lastGenerated: new Date().toLocaleTimeString(),
+                },
+              ]
+            : nextVersion.exports,
         insight,
       }
 

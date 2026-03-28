@@ -52,7 +52,10 @@ export async function googleGenerateContent(
   })
 
   if (!response.ok) {
-    throw new Error(`Google generateContent failed: ${response.status} ${response.statusText}`)
+    const errorText = await response.text().catch(() => '')
+    throw new Error(
+      `Google generateContent failed: ${response.status} ${response.statusText}${errorText ? ` — ${errorText}` : ''}`,
+    )
   }
 
   return (await response.json()) as GoogleGenerateContentResponse
@@ -73,14 +76,12 @@ export function extractGoogleInlineData(
   return parts.find((part) => part.inlineData?.data)?.inlineData
 }
 
-export function getGoogleModel(name: 'gemini' | 'lyria' | 'live'): string {
+export function getGoogleModel(name: 'gemini' | 'lyria'): string {
   const config = getProviderConfig()
 
   switch (name) {
     case 'lyria':
       return config.lyriaModel
-    case 'live':
-      return config.liveModel
     default:
       return config.geminiModel
   }

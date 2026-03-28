@@ -1,4 +1,4 @@
-import { Play, Share, Settings2, Guitar } from 'lucide-react'
+import { Play, Share, Settings2, BookOpen } from 'lucide-react'
 import type { Project, ProjectVersion } from '@/domain/project'
 import { Badge } from '@/components/ui/badge'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -15,6 +15,11 @@ interface TrackHeroProps {
 export function TrackHero({ project, activeVersion }: TrackHeroProps) {
   const navigate = useNavigate()
   const setTrack = usePlaybackStore((state) => state.setTrack)
+  const waveformBars = Array.from({ length: 120 }, (_, index) => ({
+    id: index,
+    height: Math.max(15, Math.sin(index * 0.1) * 30 + ((index * 17) % 70)),
+    isPlayed: index < 40,
+  }))
 
   return (
     <div className="relative w-full border-b border-[var(--riff-surface-highest)] bg-gradient-to-b from-[var(--riff-surface-low)] to-[var(--riff-surface)] pt-12 pb-8 px-8 xl:px-12">
@@ -27,7 +32,7 @@ export function TrackHero({ project, activeVersion }: TrackHeroProps) {
         {/* Artwork */}
         <div className="shrink-0 h-48 w-48 rounded-xl overflow-hidden shadow-2xl relative group cursor-pointer border border-[var(--riff-surface-highest)]">
           <img 
-            src="https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?auto=format&fit=crop&q=80&w=400&h=400" 
+            src={project.coverUrl ?? project.artUrl ?? 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?auto=format&fit=crop&q=80&w=400&h=400'} 
             alt="Track Artwork"
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
@@ -90,12 +95,10 @@ export function TrackHero({ project, activeVersion }: TrackHeroProps) {
             
             {/* Waveform Representation */}
             <div className="flex-1 max-w-2xl h-12 flex items-center gap-[2px] opacity-70 hover:opacity-100 transition-opacity cursor-pointer">
-              {Array.from({ length: 120 }).map((_, i) => {
-                const height = Math.max(15, Math.sin(i * 0.1) * 30 + Math.random() * 70)
-                const isPlayed = i < 40
+              {waveformBars.map(({ id, height, isPlayed }) => {
                 return (
                   <div
-                    key={i}
+                    key={id}
                     className={`flex-1 rounded-sm transition-colors ${
                       isPlayed 
                         ? 'bg-[var(--riff-accent-light)] shadow-[0_0_5px_var(--riff-accent-light)]' 
@@ -110,11 +113,11 @@ export function TrackHero({ project, activeVersion }: TrackHeroProps) {
             {/* Action Buttons */}
             <div className="flex items-center gap-3">
               <button
-                onClick={() => navigate(projectRoutes.coach(project.id))}
+                onClick={() => navigate(projectRoutes.learn(project.id))}
                 className="flex items-center justify-center h-10 w-10 rounded-full border border-[var(--riff-surface-highest)] bg-[var(--riff-surface)] text-[var(--riff-text-secondary)] hover:text-white hover:border-[var(--riff-text-muted)] transition-all"
-                title="Practice in Coach"
+                title="Open Learn"
               >
-                <Guitar className="h-4 w-4" />
+                <BookOpen className="h-4 w-4" />
               </button>
               <button className="flex items-center justify-center h-10 w-10 rounded-full border border-[var(--riff-surface-highest)] bg-[var(--riff-surface)] text-[var(--riff-text-secondary)] hover:text-white hover:border-[var(--riff-text-muted)] transition-all" title="Share Project">
                 <Share className="h-4 w-4" />

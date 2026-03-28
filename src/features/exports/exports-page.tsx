@@ -25,6 +25,19 @@ function StatCard({ label, value }: { label: string; value: string }) {
   )
 }
 
+function toExportFormat(format: string): fs.ExportParams['format'] {
+  const normalized = format.toLowerCase()
+
+  switch (normalized) {
+    case 'wav':
+    case 'mp3':
+    case 'zip':
+      return normalized
+    default:
+      return 'txt'
+  }
+}
+
 export function ExportsPage() {
   const navigate = useNavigate()
   const activeProjectId = useProjectContextStore((state) => state.activeProjectId)
@@ -49,9 +62,10 @@ export function ExportsPage() {
         projectId: EXPORT_ACTIVE_BUNDLE.projectId,
         assetId: asset.id,
         filename: asset.filename || asset.name,
-        format: asset.format as any
+        format: toExportFormat(asset.format),
+        contents: `${asset.name}\n${asset.description}\nGenerated from ${EXPORT_ACTIVE_BUNDLE.projectTitle}.`,
       })
-    } catch (e) {
+    } catch {
       // Catch-all for failed native command
     }
   }
@@ -141,12 +155,17 @@ export function ExportsPage() {
               <Download className="h-4 w-4 text-[var(--riff-text-faint)]" />
               <h3 className="font-display text-sm font-bold text-[var(--riff-text-primary)]">Export Assets</h3>
             </div>
-            <AssetTypeGrid
-              assets={EXPORT_ASSETS}
-              onDownload={() => {}}
-              onRegenerate={() => {}}
-              onPreview={() => {}}
-              onSelect={(id) => setSelectedAssetId(id === selectedAssetId ? null : id)}
+          <AssetTypeGrid
+            assets={EXPORT_ASSETS}
+            onDownload={(assetId) => {
+              const asset = EXPORT_ASSETS.find((candidate) => candidate.id === assetId)
+              if (asset) {
+                void handleDownload(asset)
+              }
+            }}
+            onRegenerate={() => {}}
+            onPreview={() => {}}
+            onSelect={(id) => setSelectedAssetId(id === selectedAssetId ? null : id)}
             />
           </section>
 

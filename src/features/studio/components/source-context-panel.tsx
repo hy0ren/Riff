@@ -15,6 +15,8 @@ import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Slider } from '@/components/ui/slider'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 
 interface SourceContextPanelProps {
   sourceInputs: SourceInput[]
@@ -24,6 +26,11 @@ interface SourceContextPanelProps {
   onRefreshInterpretation: () => void
   onToggleSourceEnabled: (sourceInputId: string) => void
   onSourceWeightChange: (sourceInputId: string, weight: number) => void
+  onSourceFieldChange: (
+    sourceInputId: string,
+    field: 'label' | 'description' | 'text',
+    value: string,
+  ) => void
 }
 
 function getSourceIcon(sourceInput: SourceInput) {
@@ -81,6 +88,7 @@ export function SourceContextPanel({
   onRefreshInterpretation,
   onToggleSourceEnabled,
   onSourceWeightChange,
+  onSourceFieldChange,
 }: SourceContextPanelProps) {
   const items = [...(sourceSet?.items ?? [])].sort((left, right) => left.order - right.order)
   const sourceById = new Map(sourceInputs.map((sourceInput) => [sourceInput.id, sourceInput]))
@@ -129,9 +137,7 @@ export function SourceContextPanel({
                     <Icon className="h-4 w-4 text-[var(--riff-accent-light)]" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-[var(--riff-text-primary)]">
-                      {sourceInput.label}
-                    </p>
+                    <p className="text-xs uppercase tracking-wide text-[var(--riff-text-faint)]">Source</p>
                     <p className="text-xs text-[var(--riff-text-muted)]">{getSourceMeta(sourceInput)}</p>
                   </div>
                 </div>
@@ -145,6 +151,33 @@ export function SourceContextPanel({
                 >
                   {item.enabled ? 'Active' : 'Muted'}
                 </button>
+              </div>
+
+              <div className="space-y-2">
+                <Input
+                  value={sourceInput.label}
+                  onChange={(event) =>
+                    onSourceFieldChange(sourceInput.id, 'label', event.target.value)
+                  }
+                  className="bg-[var(--riff-surface)] border-[var(--riff-surface-highest)] text-sm"
+                />
+                <Input
+                  value={sourceInput.description}
+                  onChange={(event) =>
+                    onSourceFieldChange(sourceInput.id, 'description', event.target.value)
+                  }
+                  className="bg-[var(--riff-surface)] border-[var(--riff-surface-highest)] text-xs text-[var(--riff-text-muted)]"
+                />
+                {'text' in sourceInput ? (
+                  <Textarea
+                    value={sourceInput.text}
+                    rows={3}
+                    onChange={(event) =>
+                      onSourceFieldChange(sourceInput.id, 'text', event.target.value)
+                    }
+                    className="bg-[var(--riff-surface)] border-[var(--riff-surface-highest)] text-xs"
+                  />
+                ) : null}
               </div>
 
               <div className="flex items-center gap-2">

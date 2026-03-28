@@ -125,13 +125,13 @@ export function OverviewTab({ project, version }: OverviewTabProps) {
                   {version.insight.arrangementSummary}
                 </p>
               </div>
-              {!!version.insight.practiceNotes.length && (
+              {!!(version.insight.learningNotes ?? version.insight.practiceNotes ?? []).length && (
                 <div>
                   <p className="text-[10px] text-[var(--riff-text-muted)] uppercase tracking-wider mb-1">
-                    Practice Notes
+                    Learning Notes
                   </p>
                   <div className="space-y-1.5">
-                    {version.insight.practiceNotes.slice(0, 3).map((note) => (
+                    {(version.insight.learningNotes ?? version.insight.practiceNotes ?? []).slice(0, 3).map((note) => (
                       <p key={note} className="text-sm text-[var(--riff-text-secondary)]">
                         • {note}
                       </p>

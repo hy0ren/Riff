@@ -4,17 +4,15 @@ import {
   Sparkles, 
   ArrowRight, 
   Mic, 
-  Dumbbell, 
+  BookOpen, 
   PlusCircle, 
   Music,
   Layout,
-  Radio as RadioIcon,
   Compass
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { SUGGESTED_STATIONS, TRENDING_TRACKS } from '@/mocks/mock-data'
+import { TRENDING_TRACKS } from '@/mocks/mock-data'
 import { ProjectCard } from '@/components/shared/project-card'
-import { StationCard } from '@/components/shared/station-card'
 import { cn } from '@/lib/utils'
 import { projectRoutes } from '@/features/projects/lib/project-routes'
 import { getPrimaryProjectId } from '@/features/projects/lib/project-selectors'
@@ -123,16 +121,29 @@ export function HomePage() {
             </div>
           </section>
 
-          {/* Platform supporting layers */}
+          {/* Supporting layers */}
           <section className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <RadioIcon className="h-4 w-4 text-[var(--riff-text-muted)]" />
-                <h4 className="font-display text-sm font-bold text-[var(--riff-text-secondary)] uppercase tracking-wider">Radio Stations</h4>
+                <BookOpen className="h-4 w-4 text-[var(--riff-text-muted)]" />
+                <h4 className="font-display text-sm font-bold text-[var(--riff-text-secondary)] uppercase tracking-wider">Learning Queue</h4>
               </div>
               <div className="space-y-2">
-                {SUGGESTED_STATIONS.map(station => (
-                  <StationCard key={station.id} title={station.title} description={station.description} listeners={station.count} />
+                {recentProjects.slice(0, 3).map((project) => (
+                  <button
+                    key={project.id}
+                    type="button"
+                    onClick={() => navigate(projectRoutes.learn(project.id))}
+                    className="flex w-full items-center justify-between rounded-lg bg-[var(--riff-surface-low)] p-3 text-left transition-colors hover:bg-[var(--riff-surface-mid)]"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-[var(--riff-text-primary)]">{project.title}</p>
+                      <p className="truncate text-[11px] text-[var(--riff-text-muted)]">
+                        Learn the arrangement, lyrics, and section flow from the latest version.
+                      </p>
+                    </div>
+                    <ArrowRight className="h-4 w-4 shrink-0 text-[var(--riff-text-faint)]" />
+                  </button>
                 ))}
               </div>
             </div>
@@ -158,20 +169,22 @@ export function HomePage() {
 
         {/* Sidebar Column */}
         <aside className="space-y-8">
-          {/* Coach Promotion */}
+          {/* Learn Promotion */}
           <div className="rounded-2xl bg-[#5233ff]/[0.05] border border-[#5233ff]/[0.1] p-6">
             <div className="flex items-center gap-2 text-[#b0a1ff] font-bold text-[10px] uppercase tracking-widest mb-4">
-              <Dumbbell className="h-4 w-4" />
-              <span>Coach Mode</span>
+              <BookOpen className="h-4 w-4" />
+              <span>Learn Mode</span>
             </div>
-            <h4 className="text-lg font-bold text-[var(--riff-text-primary)] mb-2">Practice Session</h4>
-            <p className="text-sm text-[var(--riff-text-muted)] mb-6"> Rehearse your latest track "Neon Horizon" with real-time feedback. </p>
+            <h4 className="text-lg font-bold text-[var(--riff-text-primary)] mb-2">Study Your Latest Song</h4>
+            <p className="text-sm text-[var(--riff-text-muted)] mb-6">
+              Follow the arrangement, lyrics, and chord cues from your newest version without any live input setup.
+            </p>
             <Button 
               variant="outline" 
               className="w-full border-[#5233ff]/[0.2] hover:bg-[#5233ff]/[0.1] text-[#b0a1ff] font-bold"
-              onClick={() => navigate(projectRoutes.coach(targetProjectId))}
+              onClick={() => navigate(projectRoutes.learn(targetProjectId))}
             >
-              Start Practice
+              Open Learn
             </Button>
           </div>
 

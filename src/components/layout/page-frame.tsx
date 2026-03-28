@@ -13,7 +13,7 @@ interface PageFrameProps {
   className?: string
   /** 
    * Full-bleed mode: no max-width or padding constraints.
-   * Used by dense workspaces like Studio and Coach.
+   * Used by dense workspaces like Studio and other immersive product areas.
    */
   fullBleed?: boolean
   /**

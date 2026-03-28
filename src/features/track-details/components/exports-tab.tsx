@@ -1,9 +1,12 @@
+import type { SVGProps } from 'react'
 import type { ProjectVersion } from '@/domain/project'
 import { Download, FileAudio, FileMusic, FileText, PackageOpen, CheckCircle2, Clock } from 'lucide-react'
 
 interface ExportsTabProps {
   version: ProjectVersion
 }
+
+type MicIconProps = SVGProps<SVGSVGElement>
 
 export function ExportsTab({ version }: ExportsTabProps) {
   if (!version.exports) {
@@ -71,7 +74,7 @@ export function ExportsTab({ version }: ExportsTabProps) {
   )
 }
 
-function MicIcon(props: any) {
+function MicIcon(props: MicIconProps) {
   return (
     <svg
       {...props}

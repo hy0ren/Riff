@@ -17,8 +17,11 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
+import { usePlaybackStore } from '@/features/playback/store/use-playback-store'
 
 interface GenerationWorkspaceProps {
+  projectTitle: string
+  projectArtUrl?: string
   versions: ProjectVersion[]
   generationRuns: GenerationRun[]
   activeVersionId?: string
@@ -38,6 +41,8 @@ const VARIANT_ACTIONS: { label: string; kind: TrackVersionKind }[] = [
 ]
 
 export function GenerationWorkspace({
+  projectTitle,
+  projectArtUrl,
   versions,
   generationRuns,
   activeVersionId,
@@ -48,7 +53,8 @@ export function GenerationWorkspace({
   onGenerate,
   onLoadVersion,
 }: GenerationWorkspaceProps) {
-  const [slowGenerationVisible, setSlowGenerationVisible] = useState(false)
+  const [now, setNow] = useState(() => Date.now())
+  const setTrack = usePlaybackStore((state) => state.setTrack)
 
   const activeRun =
     generationRuns.find((generationRun) => generationRun.id === activeGenerationRunId) ??
@@ -59,19 +65,19 @@ export function GenerationWorkspace({
 
   useEffect(() => {
     if (activeRun?.status !== 'running' || !activeRun.startedAt) {
-      setSlowGenerationVisible(false)
       return
     }
 
-    const startedAtMs = new Date(activeRun.startedAt).getTime()
-    const update = () => {
-      setSlowGenerationVisible(Date.now() - startedAtMs > 30_000)
-    }
-
-    update()
-    const intervalId = window.setInterval(update, 1000)
+    const intervalId = window.setInterval(() => setNow(Date.now()), 1000)
     return () => window.clearInterval(intervalId)
   }, [activeRun?.id, activeRun?.status, activeRun?.startedAt])
+
+  const slowGenerationVisible =
+    activeRun?.status === 'running' &&
+    Boolean(activeRun.startedAt) &&
+    now - new Date(activeRun.startedAt ?? 0).getTime() > 30_000
+
+  const activeVersion = versions.find((version) => version.id === activeVersionId)
 
   const retryKind: TrackVersionKind = activeRun?.kind ?? 'base'
 
@@ -87,7 +93,7 @@ export function GenerationWorkspace({
           <div className="mt-1 flex items-center gap-2">
             <span className="flex h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
             <span className="text-sm font-medium text-[var(--riff-text-muted)]">
-              Mock Lyria pipeline · {activeRun?.status ?? 'idle'}
+              Lyria generation pipeline · {activeRun?.status ?? 'idle'}
             </span>
           </div>
         </div>
@@ -128,15 +134,34 @@ export function GenerationWorkspace({
 
         <div className="flex items-center justify-between pt-2">
           <div className="w-28 text-sm font-mono text-[var(--riff-text-muted)]">
-            {versions.find((version) => version.id === activeVersionId)?.duration
-              ? `0:00 / ${Math.floor((versions.find((version) => version.id === activeVersionId)?.duration ?? 0) / 60)}:${String((versions.find((version) => version.id === activeVersionId)?.duration ?? 0) % 60).padStart(2, '0')}`
+            {activeVersion?.duration
+              ? `0:00 / ${Math.floor(activeVersion.duration / 60)}:${String(activeVersion.duration % 60).padStart(2, '0')}`
               : '0:00 / --:--'}
           </div>
           <div className="flex items-center gap-6">
             <button className="text-[var(--riff-text-secondary)] transition-colors hover:text-white">
               <SkipBack className="h-5 w-5 fill-current" />
             </button>
-            <button className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--riff-accent)] text-white shadow-lg transition-transform hover:scale-105 active:scale-95">
+            <button
+              className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--riff-accent)] text-white shadow-lg transition-transform hover:scale-105 active:scale-95 disabled:opacity-50"
+              onClick={() => {
+                if (!activeVersion) {
+                  return
+                }
+
+                setTrack({
+                  id: activeVersion.id,
+                  title: projectTitle,
+                  artist: 'Riff',
+                  artUrl: projectArtUrl,
+                  audioUrl: activeVersion.audioUrl,
+                  duration: activeVersion.duration,
+                  source: 'project-version',
+                  versionId: activeVersion.id,
+                })
+              }}
+              disabled={!activeVersion}
+            >
               <Play className="ml-1 h-5 w-5 fill-current" />
             </button>
             <button className="text-[var(--riff-text-secondary)] transition-colors hover:text-white">

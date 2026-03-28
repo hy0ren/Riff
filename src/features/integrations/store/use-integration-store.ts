@@ -44,7 +44,6 @@ interface IntegrationsSnapshot {
     topTracks: SpotifyReferenceImport[]
     playlists: SpotifyPlaylistImport[]
     useForCreationReferences: boolean
-    useForRadioSeeding: boolean
     autoSyncPlaylists: boolean
     lastSyncedAt?: string
   }
@@ -60,7 +59,7 @@ interface IntegrationStoreState extends IntegrationsSnapshot {
     lastSyncedAt?: string
   }) => void
   setSpotifyPreference: (
-    key: 'useForCreationReferences' | 'useForRadioSeeding' | 'autoSyncPlaylists',
+    key: 'useForCreationReferences' | 'autoSyncPlaylists',
     value: boolean,
   ) => void
   silentRefreshSpotify: () => Promise<void>
@@ -76,7 +75,6 @@ const defaultSnapshot: IntegrationsSnapshot = {
     topTracks: [],
     playlists: [],
     useForCreationReferences: true,
-    useForRadioSeeding: true,
     autoSyncPlaylists: false,
   },
 }
@@ -136,7 +134,6 @@ export const useIntegrationStore = create<IntegrationStoreState>((set, get) => (
         spotify: {
           ...defaultSnapshot.spotify,
           useForCreationReferences: state.spotify.useForCreationReferences,
-          useForRadioSeeding: state.spotify.useForRadioSeeding,
           autoSyncPlaylists: state.spotify.autoSyncPlaylists,
         },
       }

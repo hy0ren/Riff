@@ -4,8 +4,6 @@ import type {
   GeminiBlueprintRefinementResult,
   GeminiInterpretationRequest,
   GeminiInterpretationResult,
-  GeminiPracticeBriefRequest,
-  GeminiPracticeBriefResult,
   GeminiTrackSummaryRequest,
   GeminiTrackSummaryResult,
 } from '@/domain/providers'
@@ -60,7 +58,6 @@ export async function interpretSourceSet(
         interpretations: [],
         workingBlueprintDraft: undefined as never,
         versions: [],
-        practiceSessions: [],
         exportBundles: [],
         library: { sourceType: 'mixed', isFavorite: false, isExported: false },
       },
@@ -115,34 +112,11 @@ export async function summarizeTrackVersion(
     summary: string
     arrangementSummary: string
     lyricalThemeSummary?: string
-    practiceNotes: string[]
+    learningNotes: string[]
   }>({
     systemInstruction:
-      'You are the project explanation layer for Riff. Return JSON only. Summarize a generated track version for Track Details and practice prep.',
+      'You are the project explanation layer for Riff. Return JSON only. Summarize a generated track version for Track Details and Learn mode.',
     prompt: `Summarize this generated track version.\n${toJsonPrompt(request)}`,
-  })
-
-  return {
-    provider: 'google-gemini',
-    model: 'gemini',
-    schemaVersion: 'spartan4.v1',
-    requestHash,
-    ...result,
-  }
-}
-
-export async function preparePracticeBrief(
-  request: GeminiPracticeBriefRequest,
-): Promise<GeminiPracticeBriefResult> {
-  const requestHash = await hashJsonPayload(request)
-  const result = await callGeminiJson<{
-    title: string
-    summary: string
-    cues: string[]
-  }>({
-    systemInstruction:
-      'You are the practice prep layer for Riff Coach. Return JSON only. Prepare concise practice guidance for a live coaching session.',
-    prompt: `Prepare a practice brief for this session.\n${toJsonPrompt(request)}`,
   })
 
   return {

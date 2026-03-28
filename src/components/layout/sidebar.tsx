@@ -3,9 +3,8 @@ import {
   Home,
   PlusCircle,
   Mic,
-  Dumbbell,
+  BookOpen,
   Library,
-  Radio,
   Compass,
   Share,
   Settings,
@@ -28,7 +27,6 @@ interface NavItem {
 
 const platformNav: NavItem[] = [
   { label: 'Library', path: '/library', icon: Library },
-  { label: 'Radio', path: '/radio', icon: Radio },
   { label: 'Explore', path: '/explore', icon: Compass },
 ]
 
@@ -102,7 +100,7 @@ export function Sidebar() {
     { label: 'Home', path: '/', icon: Home },
     { label: 'Create', path: '/create', icon: PlusCircle },
     { label: 'Studio', path: projectRoutes.studio(projectId), icon: Mic },
-    { label: 'Coach', path: projectRoutes.coach(projectId), icon: Dumbbell },
+    { label: 'Learn', path: projectRoutes.learn(projectId), icon: BookOpen },
   ]
 
   return (

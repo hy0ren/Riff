@@ -6,6 +6,8 @@ interface MelodyTabProps {
 }
 
 export function MelodyTab({ version: _version }: MelodyTabProps) {
+  void _version
+
   return (
     <div className="flex flex-col gap-8 max-w-4xl">
       <div className="flex justify-between items-center mb-4">

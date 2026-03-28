@@ -12,13 +12,15 @@ interface SourceCardProps {
   onClick: () => void
 }
 export function SourceCard({
-  type: _type, // ignore unused var if needed
+  type: _type,
   label,
   description,
   icon: Icon,
   selected = false,
   onClick
 }: SourceCardProps) {
+  void _type
+
   return (
     <button
       onClick={onClick}

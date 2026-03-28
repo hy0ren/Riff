@@ -3,5 +3,5 @@ export const projectRoutes = {
   version: (projectId: string, versionId: string) =>
     `/projects/${projectId}/versions/${versionId}`,
   studio: (projectId: string) => `/projects/${projectId}/studio`,
-  coach: (projectId: string) => `/projects/${projectId}/coach`,
+  learn: (projectId: string) => `/projects/${projectId}/learn`,
 }

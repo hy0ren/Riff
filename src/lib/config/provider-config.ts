@@ -2,16 +2,14 @@ export interface ProviderConfig {
   googleApiKey?: string
   geminiModel: string
   lyriaModel: string
-  liveModel: string
   spotifyClientId?: string
   spotifyRedirectUri?: string
 }
 
 const providerConfig: ProviderConfig = {
   googleApiKey: import.meta.env.VITE_GOOGLE_API_KEY,
-  geminiModel: import.meta.env.VITE_GEMINI_MODEL ?? 'gemini-2.5-flash',
-  lyriaModel: import.meta.env.VITE_LYRIA_MODEL ?? 'models/lyria-realtime-exp',
-  liveModel: import.meta.env.VITE_LIVE_MODEL ?? 'gemini-live-2.5-flash-preview',
+  geminiModel: import.meta.env.VITE_GEMINI_MODEL ?? 'gemini-3-flash-preview',
+  lyriaModel: import.meta.env.VITE_LYRIA_MODEL ?? 'lyria-3-pro-preview',
   spotifyClientId: import.meta.env.VITE_SPOTIFY_CLIENT_ID,
   spotifyRedirectUri: import.meta.env.VITE_SPOTIFY_REDIRECT_URI,
 }

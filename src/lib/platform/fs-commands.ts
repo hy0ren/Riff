@@ -30,6 +30,9 @@ export interface ExportParams {
   assetId: string
   filename: string
   format: 'wav' | 'mp3' | 'zip' | 'txt'
+  contents?: string
+  base64Data?: string
+  mimeType?: string
 }
 
 export async function exportAssetToDisk(params: ExportParams): Promise<string> {

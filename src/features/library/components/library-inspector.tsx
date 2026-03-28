@@ -2,7 +2,7 @@ import type { Project } from '@/domain/project'
 import { Badge } from '@/components/ui/badge'
 import { 
   Music, Layers, Heart, Mic2, Globe, ExternalLink,
-  Headphones, Download, Pencil
+  BookOpen, Download, Pencil
 } from 'lucide-react'
 import { relativeTime, sourceLabel, statusColor, statusLabel } from '../lib/library-utils'
 import { useNavigate } from 'react-router-dom'
@@ -89,10 +89,10 @@ export function LibraryInspector({ project }: LibraryInspectorProps) {
           <ExternalLink className="h-4 w-4" /> Track Details
         </button>
         <button 
-          onClick={() => navigate(projectRoutes.coach(project.id))}
+          onClick={() => navigate(projectRoutes.learn(project.id))}
           className="flex items-center gap-3 w-full px-4 py-3 rounded-lg bg-[var(--riff-surface-highest)] text-[var(--riff-text-primary)] font-medium text-sm hover:bg-[var(--riff-surface-high)] transition-colors"
         >
-          <Headphones className="h-4 w-4" /> Practice this Song
+          <BookOpen className="h-4 w-4" /> Learn this Song
         </button>
         {project.isExported && (
           <button className="flex items-center gap-3 w-full px-4 py-3 rounded-lg bg-[var(--riff-surface-highest)] text-[var(--riff-text-primary)] font-medium text-sm hover:bg-[var(--riff-surface-high)] transition-colors">
@@ -105,7 +105,7 @@ export function LibraryInspector({ project }: LibraryInspectorProps) {
       <div className="text-[10px] text-[var(--riff-text-muted)] space-y-1 pt-2">
         <p>Last edited: {relativeTime(project.updatedAt)}</p>
         {project.createdAt && <p>Created: {relativeTime(project.createdAt)}</p>}
-        {project.lastPracticed && <p>Last practiced: {relativeTime(project.lastPracticed)}</p>}
+        {project.lastLearnedAt && <p>Last learned: {relativeTime(project.lastLearnedAt)}</p>}
       </div>
     </div>
   )

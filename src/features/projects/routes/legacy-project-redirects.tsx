@@ -8,9 +8,14 @@ export function LegacyStudioRedirect() {
   return <Navigate to={projectRoutes.studio(activeProjectId ?? getPrimaryProjectId())} replace />
 }
 
-export function LegacyCoachRedirect() {
+export function LegacyLearnRedirect() {
   const activeProjectId = useProjectContextStore((state) => state.activeProjectId)
-  return <Navigate to={projectRoutes.coach(activeProjectId ?? getPrimaryProjectId())} replace />
+  return <Navigate to={projectRoutes.learn(activeProjectId ?? getPrimaryProjectId())} replace />
+}
+
+export function LegacyProjectCoachRedirect() {
+  const { projectId } = useParams()
+  return <Navigate to={projectRoutes.learn(resolveProjectId(projectId))} replace />
 }
 
 export function LegacyTrackRedirect() {

@@ -3,7 +3,6 @@ import type { BlueprintDraft } from '@/domain/blueprint-draft'
 import type { ExportBundle } from '@/domain/exports'
 import type { GenerationRun } from '@/domain/generation-run'
 import type { InterpretationSnapshot } from '@/domain/interpretation'
-import type { PracticeSession } from '@/domain/practice-session'
 import type {
   PersistedProject,
   Project,
@@ -440,31 +439,6 @@ function attachRunIdsToVersions(
   }))
 }
 
-function createPracticeSessions(project: Project, versions: TrackVersion[]): PracticeSession[] {
-  if (project.practiceSessions?.length) {
-    return project.practiceSessions
-  }
-
-  if (!project.lastPracticed || !versions.length) {
-    return []
-  }
-
-  return [
-    {
-      id: `${project.id}-practice-1`,
-      projectId: project.id,
-      versionId:
-        versions.find((version) => version.isActive)?.id ?? versions[versions.length - 1].id,
-      mode: project.vocalsEnabled ? 'vocal' : 'guitar',
-      focusArea: project.vocalsEnabled ? 'rhythm' : 'chords',
-      selectedSection: 'Chorus',
-      startedAt: project.lastPracticed,
-      endedAt: project.lastPracticed,
-      summary: project.practiceReady ? 'Recent practice session available.' : undefined,
-    },
-  ]
-}
-
 function createExportBundles(project: Project, versions: TrackVersion[]): ExportBundle[] {
   if (project.exportBundles?.length) {
     return project.exportBundles
@@ -623,13 +597,11 @@ export function normalizeProject(project: Project): PersistedProject {
     generationRuns.push(completedRun)
   }
 
-  const practiceSessions = createPracticeSessions(project, versions)
   const exportBundles = createExportBundles(project, versions)
   const activeVersion =
     versions.find((version) => version.id === project.activeVersionId) ??
     versions.find((version) => version.isActive) ??
     versions[versions.length - 1]
-  const lastPracticeSession = practiceSessions[practiceSessions.length - 1]
 
   const library: ProjectLibraryState = project.library ?? {
     sourceType: deriveSourceType(sourceInputs, project.sourceType),
@@ -651,7 +623,6 @@ export function normalizeProject(project: Project): PersistedProject {
     activeBlueprintId: project.activeBlueprintId ?? activeBlueprint?.id,
     versions,
     activeVersionId: project.activeVersionId ?? activeVersion?.id,
-    practiceSessions,
     exportBundles,
     library,
     publication:
@@ -671,9 +642,8 @@ export function normalizeProject(project: Project): PersistedProject {
     mood: project.mood ?? activeBlueprint?.mood ?? workingBlueprintDraft.mood,
     vocalsEnabled:
       project.vocalsEnabled ?? activeBlueprint?.vocalsEnabled ?? workingBlueprintDraft.vocalsEnabled,
-    lastPracticed:
-      project.lastPracticed ?? lastPracticeSession?.endedAt ?? lastPracticeSession?.startedAt,
-    practiceReady: project.practiceReady ?? versions.length > 0,
+    lastLearnedAt: project.lastLearnedAt ?? project.lastPracticed,
+    learnReady: project.learnReady ?? project.practiceReady ?? versions.length > 0,
     bpm: project.bpm ?? activeBlueprint?.bpm ?? workingBlueprintDraft.bpm,
     key: project.key ?? activeBlueprint?.key ?? workingBlueprintDraft.key,
     genre: project.genre ?? activeBlueprint?.genre ?? workingBlueprintDraft.genre,

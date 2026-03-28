@@ -5,7 +5,7 @@ import type { SourceSet } from './source-set'
 import type { TrackVersionKind } from './track-version'
 
 export interface ProviderModelMetadata {
-  provider: 'google-gemini' | 'google-lyria' | 'google-live' | 'spotify'
+  provider: 'google-gemini' | 'google-lyria' | 'spotify'
   model?: string
   schemaVersion?: string
   requestHash?: string
@@ -50,23 +50,8 @@ export interface GeminiTrackSummaryResult extends ProviderModelMetadata {
   summary: string
   arrangementSummary: string
   lyricalThemeSummary?: string
-  practiceNotes: string[]
-}
-
-export interface GeminiPracticeBriefRequest {
-  projectId: string
-  versionId: string
-  projectTitle: string
-  blueprint: Partial<Blueprint>
-  focusArea: string
-  selectedSection: string
-  practiceMode: string
-}
-
-export interface GeminiPracticeBriefResult extends ProviderModelMetadata {
-  title: string
-  summary: string
-  cues: string[]
+  learningNotes: string[]
+  practiceNotes?: string[] // legacy persisted field
 }
 
 export interface LyriaGenerationRequest {
@@ -85,28 +70,6 @@ export interface LyriaGenerationResult extends ProviderModelMetadata {
   durationSeconds: number
   artifactMimeType?: string
   artifactBase64?: string
-}
-
-export interface LiveSessionConfig extends ProviderModelMetadata {
-  projectId: string
-  versionId?: string | null
-  focusArea: string
-  selectedSection: string
-  practiceMode: string
-  practiceBrief?: GeminiPracticeBriefResult
-}
-
-export interface LiveFeedbackEvent extends ProviderModelMetadata {
-  id: string
-  timestamp: string
-  text: string
-  isPartial?: boolean
-}
-
-export interface LiveTurnSummary extends ProviderModelMetadata {
-  id: string
-  timestamp: string
-  text: string
 }
 
 export interface SpotifyAuthState {

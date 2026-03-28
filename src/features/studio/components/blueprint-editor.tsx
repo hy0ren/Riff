@@ -118,6 +118,13 @@ export function BlueprintEditor({
                 onChange={(value) => onFieldChange('genre', value)}
               />
               <FieldInput
+                label="Subgenre"
+                value={draft.subgenre ?? ''}
+                origin={draft.origins.subgenre}
+                conflicted={draft.conflictFields.includes('subgenre')}
+                onChange={(value) => onFieldChange('subgenre', value)}
+              />
+              <FieldInput
                 label="Mood"
                 value={draft.mood}
                 origin={draft.origins.mood}
@@ -137,6 +144,13 @@ export function BlueprintEditor({
                 origin={draft.origins.targetDuration}
                 conflicted={draft.conflictFields.includes('targetDuration')}
                 onChange={(value) => onFieldChange('targetDuration', value)}
+              />
+              <FieldInput
+                label="Time Signature"
+                value={draft.timeSignature}
+                origin={draft.origins.timeSignature}
+                conflicted={draft.conflictFields.includes('timeSignature')}
+                onChange={(value) => onFieldChange('timeSignature', value)}
               />
             </div>
           </AccordionContent>

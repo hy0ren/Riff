@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { PageFrame } from '@/components/layout/page-frame'
 import { Navigate, useParams } from 'react-router-dom'
+import { Input } from '@/components/ui/input'
 import { SourceContextPanel } from './components/source-context-panel'
 import { GenerationWorkspace } from './components/generation-workspace'
 import { BlueprintEditor } from './components/blueprint-editor'
@@ -29,9 +30,11 @@ export function StudioPage() {
     activeGenerationRunId,
     generationError,
     hydrateProject,
+    renameProject,
     refreshInterpretation,
     toggleSourceEnabled,
     setSourceWeight,
+    updateSourceInputField,
     updateDraftField,
     commitDraft,
     startGeneration,
@@ -57,7 +60,19 @@ export function StudioPage() {
   }
 
   return (
-    <PageFrame title={activeProject.title} subtitle="Multi-Input Studio" fullBleed>
+    <PageFrame
+      subtitle="Multi-Input Studio"
+      fullBleed
+      actions={
+        <div className="w-[360px]">
+          <Input
+            value={activeProject.title}
+            onChange={(event) => renameProject(activeProject.id, event.target.value)}
+            className="bg-[var(--riff-surface-low)] border-[var(--riff-surface-highest)] text-sm font-semibold"
+          />
+        </div>
+      }
+    >
       <div className="flex flex-1 overflow-hidden p-4 gap-0">
         
         {/* Left Column: Source Assembly */}
@@ -72,12 +87,17 @@ export function StudioPage() {
             onSourceWeightChange={(sourceInputId, weight) =>
               setSourceWeight(activeProject.id, sourceInputId, weight)
             }
+            onSourceFieldChange={(sourceInputId, field, value) =>
+              updateSourceInputField(activeProject.id, sourceInputId, field, value)
+            }
           />
         </div>
 
         {/* Center Column: Generation Canvas */}
         <div className="flex flex-1 min-w-0 flex-col overflow-hidden px-4 border-l border-r border-[rgba(255,255,255,0.04)]">
           <GenerationWorkspace
+            projectTitle={activeProject.title}
+            projectArtUrl={activeProject.coverUrl ?? activeProject.artUrl}
             versions={activeProject.versions}
             generationRuns={activeProject.generationRuns}
             activeVersionId={activeProject.activeVersionId}

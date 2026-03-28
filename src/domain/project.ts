@@ -3,7 +3,6 @@ import type { BlueprintDraft } from './blueprint-draft'
 import type { ExportBundle } from './exports'
 import type { GenerationRun } from './generation-run'
 import type { InterpretationSnapshot } from './interpretation'
-import type { PracticeSession } from './practice-session'
 import type { SourceInput } from './source-input'
 import type { SourceSet } from './source-set'
 import type { TrackVersion } from './track-version'
@@ -65,7 +64,6 @@ export interface Project {
   generationRuns?: GenerationRun[]
   versions?: TrackVersion[]
   activeVersionId?: string
-  practiceSessions?: PracticeSession[]
   exportBundles?: ExportBundle[]
   library?: ProjectLibraryState
   publication?: ProjectPublicationState
@@ -83,8 +81,10 @@ export interface Project {
   description?: string
   mood?: string
   vocalsEnabled?: boolean
-  lastPracticed?: string
-  practiceReady?: boolean
+  lastLearnedAt?: string
+  learnReady?: boolean
+  lastPracticed?: string // legacy
+  practiceReady?: boolean // legacy
 }
 export type ProjectVersion = TrackVersion
 export type PersistedProject = Project & {
@@ -95,7 +95,6 @@ export type PersistedProject = Project & {
   generationRuns: GenerationRun[]
   workingBlueprintDraft: BlueprintDraft
   versions: TrackVersion[]
-  practiceSessions: PracticeSession[]
   exportBundles: ExportBundle[]
   library: ProjectLibraryState
   activeBlueprintId?: string

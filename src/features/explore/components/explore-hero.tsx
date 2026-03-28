@@ -1,17 +1,17 @@
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import type { ExploreTrack } from '@/domain/explore'
-import { Play, Radio, Wand2, ArrowRight } from 'lucide-react'
+import { Play, BookOpen, Wand2, ArrowRight } from 'lucide-react'
 
 interface ExploreHeroProps {
   track: ExploreTrack
   onPlay: () => void
   onViewTrack: () => void
   onRemix: () => void
-  onStartRadio: () => void
+  onOpenLearn: () => void
 }
 
-export function ExploreHero({ track, onPlay, onViewTrack, onRemix, onStartRadio }: ExploreHeroProps) {
+export function ExploreHero({ track, onPlay, onViewTrack, onRemix, onOpenLearn }: ExploreHeroProps) {
   return (
     <div className="relative overflow-hidden rounded-2xl" style={{ background: 'var(--riff-surface-low)' }}>
       {/* Blurred artwork backdrop */}
@@ -80,8 +80,8 @@ export function ExploreHero({ track, onPlay, onViewTrack, onRemix, onStartRadio 
             <Button onClick={onRemix} variant="ghost" size="icon" className="h-10 w-10 rounded-xl text-[var(--riff-text-muted)] hover:bg-[var(--riff-surface-high)] hover:text-[var(--riff-accent-light)]">
               <Wand2 className="h-4 w-4" />
             </Button>
-            <Button onClick={onStartRadio} variant="ghost" size="icon" className="h-10 w-10 rounded-xl text-[var(--riff-text-muted)] hover:bg-[var(--riff-surface-high)] hover:text-[var(--riff-accent-light)]">
-              <Radio className="h-4 w-4" />
+            <Button onClick={onOpenLearn} variant="ghost" size="icon" className="h-10 w-10 rounded-xl text-[var(--riff-text-muted)] hover:bg-[var(--riff-surface-high)] hover:text-[var(--riff-accent-light)]">
+              <BookOpen className="h-4 w-4" />
             </Button>
           </div>
         </div>
