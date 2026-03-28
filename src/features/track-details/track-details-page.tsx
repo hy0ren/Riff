@@ -39,7 +39,11 @@ export function TrackDetailsPage() {
     ? getProjectVersion(activeProject, versionId)
     : undefined
   const activeBlueprint = activeVersion ? getVersionBlueprint(activeProject, activeVersion) : undefined
-  const activeLyrics = activeVersion ? getDisplayLyrics(activeProject, activeVersion) : undefined
+  const activeLyrics = activeVersion
+    ? activeVersion.insight?.lyricSections ??
+      activeVersion.lyrics ??
+      getDisplayLyrics(activeProject, activeVersion)
+    : undefined
   const activeStructure = activeVersion ? getVersionStructure(activeProject, activeVersion) : undefined
   const activeSectionGuides = activeVersion
     ? getVersionSectionGuides(activeProject, activeVersion)
@@ -79,7 +83,7 @@ export function TrackDetailsPage() {
         notes: activeVersion.notes,
         audioDataUrl: activeVersion.audioUrl,
         structure: activeVersion.structure,
-        lyrics: activeVersion.lyrics,
+        lyrics: activeLyrics,
       })
 
       updateProject(activeProject.id, (project) => ({

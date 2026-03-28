@@ -25,10 +25,16 @@ function formatTimestamp(seconds: number): string {
 }
 
 export function LyricsTab({ lyrics, structure, hasAudio, hasVocals, isAnalyzing, onAnalyze, onExport }: LyricsTabProps) {
-  const safeLyrics = lyrics?.filter((s) => s.label && s.lines?.length).map((s) => ({
-    ...s,
-    lines: s.lines ?? [],
-  }))
+  const safeLyrics = (lyrics ?? [])
+    .map((section, index) => {
+      const lines = (section.lines ?? []).map((line) => line?.trim()).filter(Boolean) as string[]
+      return {
+        ...section,
+        label: section.label?.trim() || `Section ${index + 1}`,
+        lines,
+      }
+    })
+    .filter((section) => section.lines.length > 0)
 
   if (!safeLyrics?.length) {
     return (
@@ -88,10 +94,10 @@ export function LyricsTab({ lyrics, structure, hasAudio, hasVocals, isAnalyzing,
       </div>
 
       <div className="flex flex-col gap-8">
-        {safeLyrics.map((lyric, idx) => {
+        {safeLyrics.map((lyric) => {
           const timing = findSectionTiming(lyric.label, structure)
           return (
-          <div key={idx} className="flex gap-12 group">
+          <div key={lyric.id} className="flex gap-12 group">
              {/* Metadata Side */}
              <div className="w-48 shrink-0 flex flex-col items-end text-right border-r-2 border-[var(--riff-surface-highest)] pr-8 pt-1 group-hover:border-[var(--riff-accent)]/80 transition-colors">
                <h3 className="font-bold uppercase tracking-widest text-[var(--riff-text-primary)] text-sm">{lyric.label}</h3>
