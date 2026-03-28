@@ -9,8 +9,6 @@ import { PlaybackSection } from './components/playback-section'
 import { CreationSection } from './components/creation-section'
 import { ExportPrefsSection } from './components/export-prefs-section'
 import { StorageSection } from './components/storage-section'
-import { PrivacySection } from './components/privacy-section'
-import { NotificationsSection } from './components/notifications-section'
 import { IntegrationsSection } from './components/integrations-section'
 import { AudioSection } from './components/audio-section'
 import { AdvancedSection } from './components/advanced-section'
@@ -56,8 +54,6 @@ export function SettingsPage() {
           <CreationSection />
           <ExportPrefsSection />
           <StorageSection />
-          <PrivacySection />
-          <NotificationsSection />
           <IntegrationsSection />
           <AudioSection />
           <AdvancedSection />

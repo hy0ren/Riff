@@ -21,6 +21,8 @@ export interface ExportAsset {
   status: ExportStatus
   size: string
   lastGenerated: string
+  filename?: string
+  path?: string
 }
 
 export interface ExportBundle {

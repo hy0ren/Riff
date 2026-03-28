@@ -27,6 +27,7 @@ export function StudioPage() {
     interpretationStatus,
     quickRefinementText,
     activeGenerationRunId,
+    generationError,
     hydrateProject,
     refreshInterpretation,
     toggleSourceEnabled,
@@ -81,6 +82,7 @@ export function StudioPage() {
             generationRuns={activeProject.generationRuns}
             activeVersionId={activeProject.activeVersionId}
             activeGenerationRunId={activeGenerationRunId}
+            generationError={generationError}
             quickRefinementText={quickRefinementText}
             onQuickRefinementChange={setQuickRefinementText}
             onGenerate={(kind) => startGeneration(activeProject.id, { kind })}

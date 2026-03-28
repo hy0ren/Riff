@@ -1,8 +1,14 @@
+import { useEffect } from 'react'
 import { Outlet } from 'react-router-dom'
+import { useIntegrationStore } from '@/features/integrations/store/use-integration-store'
 import { Sidebar } from './sidebar'
 import { GlobalPlayer } from './global-player'
 
 export function AppShell() {
+  useEffect(() => {
+    void useIntegrationStore.getState().silentRefreshSpotify()
+  }, [])
+
   return (
     <div className="grid h-screen w-screen grid-cols-[240px_1fr] grid-rows-[1fr_72px] overflow-hidden"
          style={{ background: 'var(--riff-surface)' }}>

@@ -1,5 +1,7 @@
 import { useState, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { PageFrame } from '@/components/layout/page-frame'
+import { EmptyState } from '@/components/shared/empty-state'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { 
@@ -17,6 +19,7 @@ type TabFilter = 'all' | 'drafts' | 'final' | 'favorites' | 'collections'
 type SortMode = 'recent' | 'title' | 'bpm'
 
 export function LibraryPage() {
+  const navigate = useNavigate()
   const projects = useProjectStore((state) => state.projects)
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const [activeTab, setActiveTab] = useState<TabFilter>('all')
@@ -78,6 +81,8 @@ export function LibraryPage() {
   const draftCount = projects.filter(p => p.status === 'draft').length
   const finalCount = projects.filter(p => p.status === 'finished').length
   const exportedCount = projects.filter(p => p.isExported).length
+  const isLibraryEmpty = totalProjects === 0
+  const isFilteredEmpty = !isLibraryEmpty && filtered.length === 0
 
   return (
     <PageFrame
@@ -110,6 +115,7 @@ export function LibraryPage() {
         </div>
 
         {/* Search + Tabs + Controls */}
+        {!isLibraryEmpty && (
         <div className="flex items-center justify-between gap-4">
           
           {/* Search */}
@@ -164,16 +170,34 @@ export function LibraryPage() {
             </div>
           </div>
         </div>
+        )}
 
         {/* Results Count */}
+        {!isLibraryEmpty && (
         <p className="text-xs text-[var(--riff-text-muted)]">
           {filtered.length} project{filtered.length !== 1 ? 's' : ''}
           {activeTab !== 'all' && ` in ${activeTab}`}
           {searchQuery && ` matching "${searchQuery}"`}
         </p>
+        )}
 
-        {/* Project Grid / List */}
-        {viewMode === 'grid' ? (
+        {isLibraryEmpty ? (
+          <EmptyState
+            icon={<Music className="h-7 w-7" strokeWidth={1.5} />}
+            title="Start your library"
+            description="Create a song to see it here—versions, blueprints, and exports will gather in one place as you iterate."
+            action={{ label: 'Create your first song', onClick: () => navigate('/create') }}
+            className="mx-auto w-full max-w-md"
+          />
+        ) : isFilteredEmpty ? (
+          <EmptyState
+            icon={<Search className="h-7 w-7" strokeWidth={1.5} />}
+            title="Nothing matches"
+            description="Try a different search, tab, or sort. Your projects are still in the library."
+            compact
+            className="mx-auto w-full max-w-md"
+          />
+        ) : viewMode === 'grid' ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
             {filtered.map(project => (
               <LibraryProjectCard
@@ -205,14 +229,6 @@ export function LibraryPage() {
                 onClick={() => setSelectedId(selectedId === project.id ? null : project.id)}
               />
             ))}
-          </div>
-        )}
-
-        {/* Empty State */}
-        {filtered.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-20 gap-4">
-            <Music className="h-12 w-12 text-[var(--riff-text-faint)]" />
-            <p className="text-sm text-[var(--riff-text-muted)]">No projects match your filters.</p>
           </div>
         )}
 

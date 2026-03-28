@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react'
 import {
+  AlertTriangle,
   FileAudio,
   GitMerge,
   History,
@@ -21,6 +23,7 @@ interface GenerationWorkspaceProps {
   generationRuns: GenerationRun[]
   activeVersionId?: string
   activeGenerationRunId?: string | null
+  generationError: string | null
   quickRefinementText: string
   onQuickRefinementChange: (value: string) => void
   onGenerate: (kind?: TrackVersionKind) => void
@@ -39,17 +42,38 @@ export function GenerationWorkspace({
   generationRuns,
   activeVersionId,
   activeGenerationRunId,
+  generationError,
   quickRefinementText,
   onQuickRefinementChange,
   onGenerate,
   onLoadVersion,
 }: GenerationWorkspaceProps) {
+  const [slowGenerationVisible, setSlowGenerationVisible] = useState(false)
+
   const activeRun =
     generationRuns.find((generationRun) => generationRun.id === activeGenerationRunId) ??
     [...generationRuns].sort(
       (left, right) =>
         new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime(),
     )[0]
+
+  useEffect(() => {
+    if (activeRun?.status !== 'running' || !activeRun.startedAt) {
+      setSlowGenerationVisible(false)
+      return
+    }
+
+    const startedAtMs = new Date(activeRun.startedAt).getTime()
+    const update = () => {
+      setSlowGenerationVisible(Date.now() - startedAtMs > 30_000)
+    }
+
+    update()
+    const intervalId = window.setInterval(update, 1000)
+    return () => window.clearInterval(intervalId)
+  }, [activeRun?.id, activeRun?.status, activeRun?.startedAt])
+
+  const retryKind: TrackVersionKind = activeRun?.kind ?? 'base'
 
   return (
     <div className="relative flex flex-1 flex-col gap-6 overflow-hidden rounded-2xl bg-[var(--riff-surface-low)] p-6 shadow-xl">
@@ -146,6 +170,39 @@ export function GenerationWorkspace({
         <div className="mt-4 flex-1 overflow-y-auto pb-4 pr-2">
           <TabsContent value="copilot" className="h-full focus-visible:outline-none">
             <div className="flex flex-col gap-4">
+              {generationError ? (
+                <div
+                  role="alert"
+                  className="rounded-xl border border-amber-500/35 bg-gradient-to-br from-red-950/40 to-amber-950/25 p-4 shadow-[0_0_24px_rgba(220,38,38,0.08)]"
+                >
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-500/15 text-red-400">
+                        <AlertTriangle className="h-5 w-5" aria-hidden />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-amber-100">Generation did not complete</p>
+                        <p className="mt-1 text-sm text-[var(--riff-text-secondary)]">{generationError}</p>
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 flex-wrap gap-2 sm:justify-end">
+                      <Button
+                        className="bg-[var(--riff-accent)] text-white hover:bg-[var(--riff-accent)]/90"
+                        onClick={() => onGenerate(retryKind)}
+                      >
+                        Retry
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+              {activeRun?.status === 'running' && slowGenerationVisible ? (
+                <p className="text-sm font-medium text-amber-200/90">
+                  Taking longer than expected… Lyria may still be working. You can leave this tab open.
+                </p>
+              ) : null}
+
               <div>
                 <h3 className="mb-1 text-sm font-semibold text-[var(--riff-text-primary)]">
                   Refinement Assistant

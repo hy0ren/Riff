@@ -25,13 +25,19 @@ export function CoachPage() {
     selectedSection,
     practiceBrief,
     feedbackEvents,
+    rawTranscript,
+    sessionDuration,
+    analyserNode,
+    pastSessionCount,
+    errorMessage,
+    isReconnecting,
     setTarget,
-    setSessionState,
     setPracticeMode,
     setFocusArea,
     setSelectedSection,
     connectSession,
-    requestFeedback,
+    pauseSession,
+    resumeSession,
     disconnectSession,
   } = usePracticeSessionStore()
 
@@ -57,16 +63,20 @@ export function CoachPage() {
     return <Navigate to={projectRoutes.coach(activeProject.id)} replace />
   }
 
-  const handleToggleRehearsal = () => {
-    if (sessionState === 'idle' || sessionState === 'paused') {
-      setSessionState('listening')
+  const handleStart = () => {
+    if (sessionState === 'paused') {
+      resumeSession()
     } else {
-      setSessionState('paused')
+      void connectSession(activeProject, activeVersion)
     }
   }
 
-  const triggerCoachResponse = () => {
-    void requestFeedback(activeProject, activeVersion)
+  const handlePause = () => {
+    pauseSession()
+  }
+
+  const handleStop = () => {
+    disconnectSession()
   }
 
   return (
@@ -91,6 +101,9 @@ export function CoachPage() {
             selectedSection={selectedSection}
             onSectionChange={setSelectedSection}
             practiceBrief={practiceBrief}
+            sessionState={sessionState}
+            pastSessionCount={pastSessionCount}
+            onReconnect={handleStart}
           />
         </aside>
 
@@ -113,8 +126,13 @@ export function CoachPage() {
             version={activeVersion}
             sessionState={sessionState}
             practiceMode={practiceMode}
-            onToggleRehearsal={handleToggleRehearsal}
-            onSimulateEvent={triggerCoachResponse}
+            sessionDuration={sessionDuration}
+            analyserNode={analyserNode}
+            errorMessage={errorMessage}
+            isReconnecting={isReconnecting}
+            onStart={handleStart}
+            onPause={handlePause}
+            onStop={handleStop}
           />
         </div>
 
@@ -126,7 +144,12 @@ export function CoachPage() {
             borderLeft: '1px solid rgba(255,255,255,0.04)',
           }}
         >
-          <CoachTranscriptPanel sessionState={sessionState} feedbackEvents={feedbackEvents} />
+          <CoachTranscriptPanel
+            sessionState={sessionState}
+            feedbackEvents={feedbackEvents}
+            sessionDuration={sessionDuration}
+            rawTranscript={rawTranscript}
+          />
         </aside>
 
       </div>

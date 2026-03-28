@@ -257,4 +257,54 @@
     .text-riff-accent {
         color: var(--riff-accent-light);
     }
+
+    /* Skeleton shimmer — shared loading placeholders */
+    @keyframes riff-skeleton-shimmer {
+        from {
+            transform: translateX(-100%);
+        }
+        to {
+            transform: translateX(100%);
+        }
+    }
+
+    .riff-skeleton-card {
+        position: relative;
+        overflow: hidden;
+        background-color: var(--riff-surface-low);
+        border: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .riff-skeleton-card__shimmer {
+        pointer-events: none;
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        background: linear-gradient(
+            105deg,
+            transparent 0%,
+            transparent 35%,
+            color-mix(in srgb, var(--riff-surface-mid) 85%, transparent) 50%,
+            transparent 65%,
+            transparent 100%
+        );
+        animation: riff-skeleton-shimmer 1.35s ease-in-out infinite;
+    }
+
+    /* Staggered page entry — children get .stagger-child + inline delay */
+    @keyframes riff-stagger-fade-in {
+        from {
+            opacity: 0;
+            transform: translateY(6px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .stagger-child {
+        opacity: 0;
+        animation: riff-stagger-fade-in 0.45s ease-out forwards;
+    }
 }

@@ -1,7 +1,9 @@
+import { useState, useEffect } from 'react'
 import type { ReactNode } from 'react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { useDevicePermissionsStore } from '@/lib/platform/permissions/use-device-permissions-store'
 
 const rowStyle = {
   background: 'var(--riff-surface-low)',
@@ -19,7 +21,98 @@ function ValuePill({ children }: { children: ReactNode }) {
   )
 }
 
+function DeviceListValue({
+  devices,
+  hasScanned,
+  isScanning,
+}: {
+  devices: MediaDeviceInfo[]
+  hasScanned: boolean
+  isScanning: boolean
+}) {
+  if (isScanning) {
+    return (
+      <ValuePill>
+        <span className="text-[var(--riff-text-muted)]">Scanning...</span>
+      </ValuePill>
+    )
+  }
+  if (hasScanned && devices.length === 0) {
+    return (
+      <ValuePill>
+        <span className="text-[var(--riff-text-muted)]">No devices found</span>
+      </ValuePill>
+    )
+  }
+  if (devices.length > 0) {
+    return (
+      <div className="flex max-w-[min(100%,280px)] flex-col items-end gap-1.5">
+        {devices.map((d) => (
+          <ValuePill key={d.deviceId}>
+            {d.label?.trim() ? d.label : 'Unnamed device'}
+          </ValuePill>
+        ))}
+      </div>
+    )
+  }
+  return null
+}
+
 export function AudioSection() {
+  const {
+    microphoneStatus,
+    checkMicrophonePermission,
+    requestMicrophonePermission,
+    inputDevices,
+    outputDevices,
+    hasScanned,
+    isScanning,
+    scanDevices,
+  } = useDevicePermissionsStore()
+
+  const [isRequesting, setIsRequesting] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      await checkMicrophonePermission()
+      if (!cancelled) {
+        await scanDevices()
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [checkMicrophonePermission, scanDevices])
+
+  const handleRequestMicrophone = async () => {
+    if (microphoneStatus === 'granted') return
+    setIsRequesting(true)
+    await requestMicrophonePermission()
+    setIsRequesting(false)
+  }
+
+  const badgeProps = {
+    granted: {
+      className: 'border-emerald-500/35 bg-emerald-500/15 text-emerald-400',
+      label: 'Granted'
+    },
+    denied: {
+      className: 'border-destructive/35 bg-destructive/15 text-destructive',
+      label: 'Denied'
+    },
+    prompt: {
+      className: 'border-yellow-500/35 bg-yellow-500/15 text-yellow-400',
+      label: 'Not granted'
+    },
+    unknown: {
+      className: 'border-[var(--riff-text-muted)] bg-[var(--riff-surface-mid)] text-[var(--riff-text-secondary)]',
+      label: 'Unknown'
+    }
+  }
+
+  const badgeConfig = badgeProps[microphoneStatus] || badgeProps.unknown
+
   return (
     <section id="audio" className="space-y-6">
       <div>
@@ -45,12 +138,19 @@ export function AudioSection() {
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <Badge className="border border-emerald-500/35 bg-emerald-500/15 text-emerald-400" variant="outline">
-              Granted
+            <Badge className={`border ${badgeConfig.className}`} variant="outline">
+              {badgeConfig.label}
             </Badge>
-            <Button variant="outline" size="sm" className="text-destructive hover:bg-destructive/10 hover:text-destructive">
-              Revoke
-            </Button>
+            {microphoneStatus !== 'granted' && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => void handleRequestMicrophone()}
+                disabled={isRequesting}
+              >
+                {microphoneStatus === 'denied' ? 'Check OS Settings' : 'Request Access'}
+              </Button>
+            )}
           </div>
         </div>
 
@@ -62,7 +162,11 @@ export function AudioSection() {
             <p className="text-sm font-medium text-[var(--riff-text-primary)]">Audio input device</p>
             <p className="mt-0.5 text-[12px] text-[var(--riff-text-muted)]">Microphone used for recording</p>
           </div>
-          <ValuePill>Built-in Microphone</ValuePill>
+          <DeviceListValue
+            devices={inputDevices}
+            hasScanned={hasScanned}
+            isScanning={isScanning}
+          />
         </div>
 
         <div
@@ -73,7 +177,11 @@ export function AudioSection() {
             <p className="text-sm font-medium text-[var(--riff-text-primary)]">Audio output device</p>
             <p className="mt-0.5 text-[12px] text-[var(--riff-text-muted)]">Playback destination for previews and radio</p>
           </div>
-          <ValuePill>Built-in Speakers</ValuePill>
+          <DeviceListValue
+            devices={outputDevices}
+            hasScanned={hasScanned}
+            isScanning={isScanning}
+          />
         </div>
 
         <div

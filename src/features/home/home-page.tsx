@@ -20,6 +20,7 @@ import { projectRoutes } from '@/features/projects/lib/project-routes'
 import { getPrimaryProjectId } from '@/features/projects/lib/project-selectors'
 import { useProjectContextStore } from '@/features/projects/store/use-project-context-store'
 import { useProjectStore } from '@/features/projects/store/use-project-store'
+import { StaggerChildren } from '@/components/shared/stagger-children'
 
 export function HomePage() {
   const navigate = useNavigate()
@@ -95,13 +96,15 @@ export function HomePage() {
               </Button>
             </div>
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-              {recentProjects.slice(0, 4).map(project => (
-                <ProjectCard 
-                  key={project.id} 
-                  project={project} 
-                  onClick={() => navigate(projectRoutes.details(project.id))}
-                />
-              ))}
+              <StaggerChildren staggerMs={60}>
+                {recentProjects.slice(0, 4).map((project) => (
+                  <ProjectCard
+                    key={project.id}
+                    project={project}
+                    onClick={() => navigate(projectRoutes.details(project.id))}
+                  />
+                ))}
+              </StaggerChildren>
             </div>
           </section>
 
@@ -111,10 +114,12 @@ export function HomePage() {
               Suggested Actions
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <IntakeAction icon={Mic} label="Record a Hum" color="text-amber-400" onClick={() => navigate('/create')} />
-              <IntakeAction icon={Music} label="Upload a Riff" color="text-emerald-400" onClick={() => navigate('/create')} />
-              <IntakeAction icon={PlusCircle} label="Write Lyrics" color="text-sky-400" onClick={() => navigate('/create')} />
-              <IntakeAction icon={Compass} label="Import Spotify" color="text-green-500" onClick={() => navigate('/create')} />
+              <StaggerChildren staggerMs={55}>
+                <IntakeAction icon={Mic} label="Record a Hum" color="text-amber-400" onClick={() => navigate('/create')} />
+                <IntakeAction icon={Music} label="Upload a Riff" color="text-emerald-400" onClick={() => navigate('/create')} />
+                <IntakeAction icon={PlusCircle} label="Write Lyrics" color="text-sky-400" onClick={() => navigate('/create')} />
+                <IntakeAction icon={Compass} label="Import Spotify" color="text-green-500" onClick={() => navigate('/create')} />
+              </StaggerChildren>
             </div>
           </section>
 
@@ -182,21 +187,27 @@ export function HomePage() {
   )
 }
 
-function IntakeAction({ 
-  icon: Icon, 
-  label, 
+function IntakeAction({
+  icon: Icon,
+  label,
   color,
-  onClick 
-}: { 
-  icon: any, 
-  label: string, 
-  color: string,
-  onClick: () => void 
+  onClick,
+  className,
+}: {
+  icon: typeof Mic
+  label: string
+  color: string
+  onClick: () => void
+  className?: string
 }) {
   return (
-    <button 
+    <button
+      type="button"
       onClick={onClick}
-      className="flex flex-col items-center gap-3 p-4 rounded-xl bg-[var(--riff-surface-low)] hover:bg-[var(--riff-surface-mid)] transition-colors group"
+      className={cn(
+        'flex flex-col items-center gap-3 rounded-xl bg-[var(--riff-surface-low)] p-4 transition-colors group hover:bg-[var(--riff-surface-mid)]',
+        className,
+      )}
     >
       <div className={cn("flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--riff-surface-mid)] group-hover:scale-110 transition-transform", color)}>
         <Icon className="h-5 w-5" />

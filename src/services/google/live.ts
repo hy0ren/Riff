@@ -39,6 +39,25 @@ export class RawLiveSession {
     )
   }
 
+  /**
+   * Streams a base64-encoded PCM audio chunk to the Live API.
+   * Called continuously by AudioCaptureService during active practice.
+   */
+  sendAudioChunk(base64Pcm: string) {
+    this.socket.send(
+      JSON.stringify({
+        realtimeInput: {
+          mediaChunks: [
+            {
+              mimeType: 'audio/pcm;rate=16000',
+              data: base64Pcm,
+            },
+          ],
+        },
+      }),
+    )
+  }
+
   close() {
     this.socket.close()
   }

@@ -9,6 +9,7 @@ interface TuningPanelProps {
   tuning: TuningState
   onChange: (key: keyof TuningState, value: number | boolean) => void
   onReset: () => void
+  onConnectSpotify?: () => void
 }
 
 interface TuningSliderProps {
@@ -67,7 +68,7 @@ function SectionHeading({ label }: SectionHeadingProps) {
   )
 }
 
-export function TuningPanel({ tuning, onChange, onReset }: TuningPanelProps) {
+export function TuningPanel({ tuning, onChange, onReset, onConnectSpotify }: TuningPanelProps) {
   return (
     <div
       className="rounded-2xl p-5"
@@ -215,6 +216,7 @@ export function TuningPanel({ tuning, onChange, onReset }: TuningPanelProps) {
                 variant="outline"
                 size="sm"
                 className="h-7 border-[#1db954]/30 px-3 text-[12px] font-semibold text-[#1db954] hover:bg-[#1db954]/10"
+                onClick={() => onConnectSpotify?.()}
               >
                 Connect Spotify
               </Button>

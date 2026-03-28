@@ -5,12 +5,42 @@ import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Switch } from '@/components/ui/switch'
 import { beginSpotifyAuthorization, syncSpotifyLibrary } from '@/lib/providers/spotify-gateway'
-import { useIntegrationStore } from '@/features/integrations/store/use-integration-store'
+import {
+  getSpotifyConnectionStatus,
+  isSpotifyConnected,
+  useIntegrationStore,
+} from '@/features/integrations/store/use-integration-store'
 
 const rowStyle = {
   background: 'var(--riff-surface-low)',
   border: '1px solid rgba(255,255,255,0.04)',
 } as const
+
+function connectionStatusBadgeClass(status: ReturnType<typeof getSpotifyConnectionStatus>): string {
+  switch (status) {
+    case 'connected':
+      return 'border border-[#1db954]/35 bg-[#1db954]/15 text-[11px] text-[#1db954]'
+    case 'auth_required':
+      return 'border border-amber-500/40 bg-amber-500/15 text-[11px] text-amber-200'
+    case 'connecting':
+      return 'border border-sky-500/35 bg-sky-500/10 text-[11px] text-sky-200'
+    default:
+      return 'border border-[var(--riff-surface-highest)] bg-[var(--riff-surface-high)] text-[11px] text-[var(--riff-text-muted)]'
+  }
+}
+
+function connectionStatusLabel(status: ReturnType<typeof getSpotifyConnectionStatus>): string {
+  switch (status) {
+    case 'connected':
+      return 'Connected'
+    case 'auth_required':
+      return 'Reconnect required'
+    case 'connecting':
+      return 'Connecting…'
+    default:
+      return 'Not connected'
+  }
+}
 
 export function IntegrationsSection() {
   const [isSyncing, setIsSyncing] = useState(false)
@@ -21,13 +51,14 @@ export function IntegrationsSection() {
   const setSpotifyImports = useIntegrationStore((state) => state.setSpotifyImports)
   const setSpotifyPreference = useIntegrationStore((state) => state.setSpotifyPreference)
 
-  const isConnected = Boolean(spotify.auth.accessToken && spotify.profile)
-  const lastSyncedLabel = useMemo(() => {
-    if (!spotify.lastSyncedAt) {
-      return 'Not synced yet'
-    }
+  const connectionStatus = useIntegrationStore((state) => getSpotifyConnectionStatus(state.spotify.auth))
+  const linked = useIntegrationStore(isSpotifyConnected)
 
-    return `${formatDistanceToNow(new Date(spotify.lastSyncedAt), { addSuffix: true })}`
+  const lastSyncedRelative = useMemo(() => {
+    if (!spotify.lastSyncedAt) {
+      return null
+    }
+    return formatDistanceToNow(new Date(spotify.lastSyncedAt), { addSuffix: true })
   }, [spotify.lastSyncedAt])
 
   const handleConnect = async () => {
@@ -37,7 +68,7 @@ export function IntegrationsSection() {
   }
 
   const handleSync = async () => {
-    if (!spotify.auth.accessToken && !spotify.auth.refreshToken) {
+    if (!spotify.auth.refreshToken && !spotify.auth.accessToken) {
       return
     }
 
@@ -71,23 +102,55 @@ export function IntegrationsSection() {
         className="space-y-4 rounded-2xl p-5"
         style={{ background: 'var(--riff-surface-low)', border: '1px solid rgba(255,255,255,0.04)' }}
       >
-        <div className="space-y-2">
+        <div className="space-y-3">
           <p className="font-display text-lg font-bold" style={{ color: '#1db954' }}>
             ♫ Spotify
           </p>
           <div className="flex flex-wrap items-center gap-2">
-            <Badge
-              className="border border-[#1db954]/35 bg-[#1db954]/15 text-[11px] text-[#1db954]"
-              variant="outline"
-            >
-              {isConnected ? 'Connected' : 'Not Connected'}
+            <Badge className={connectionStatusBadgeClass(connectionStatus)} variant="outline">
+              {connectionStatusLabel(connectionStatus)}
             </Badge>
-            <span className="text-sm text-[var(--riff-text-secondary)]">
-              {spotify.profile?.displayName ?? 'Connect your account'}
-            </span>
           </div>
+          {spotify.profile && (linked || connectionStatus === 'auth_required') ? (
+            <div className="flex items-center gap-3">
+              {spotify.profile.imageUrl ? (
+                <img
+                  src={spotify.profile.imageUrl}
+                  alt=""
+                  className="h-11 w-11 shrink-0 rounded-full object-cover ring-1 ring-white/10"
+                />
+              ) : (
+                <div
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-bold text-[#1db954] ring-1 ring-[#1db954]/30"
+                  style={{ background: 'rgba(29, 185, 84, 0.12)' }}
+                  aria-hidden
+                >
+                  {(spotify.profile.displayName || '?').slice(0, 1).toUpperCase()}
+                </div>
+              )}
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-[var(--riff-text-primary)]">
+                  {spotify.profile.displayName}
+                </p>
+                {spotify.profile.email ? (
+                  <p className="truncate text-[12px] text-[var(--riff-text-muted)]">{spotify.profile.email}</p>
+                ) : null}
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-[var(--riff-text-secondary)]">
+              {connectionStatus === 'connected'
+                ? 'Run a sync to load your Spotify name and avatar.'
+                : connectionStatus === 'connecting'
+                  ? 'Finish signing in with Spotify in your browser.'
+                  : connectionStatus === 'auth_required'
+                    ? 'Your Spotify session expired. Reconnect to keep playlists and references in sync.'
+                    : 'Connect your account to import playlists and personalize Riff.'}
+            </p>
+          )}
           <p className="text-[12px] text-[var(--riff-text-muted)]">
-            {spotify.playlists.length} playlists imported · Last sync {lastSyncedLabel}
+            {spotify.playlists.length} playlists imported
+            {lastSyncedRelative ? ` · Last synced ${lastSyncedRelative}` : ''}
           </p>
         </div>
 
@@ -114,26 +177,50 @@ export function IntegrationsSection() {
           />
         </div>
 
-        <div className="flex flex-wrap justify-end gap-2 pt-1">
-          {isConnected ? (
-            <>
-              <Button variant="outline" size="sm" onClick={() => void handleSync()} disabled={isSyncing}>
-                {isSyncing ? 'Syncing…' : 'Sync Now'}
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                onClick={clearSpotify}
-              >
-                Disconnect
-              </Button>
-            </>
-          ) : (
-            <Button size="sm" onClick={() => void handleConnect()}>
-              Connect Spotify
+        <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+          {connectionStatus === 'auth_required' ? (
+            <Button
+              className="w-full bg-[#1db954] font-semibold text-black hover:bg-[#1ed760] sm:order-first sm:w-auto"
+              onClick={() => void handleConnect()}
+            >
+              Reconnect Spotify
             </Button>
-          )}
+          ) : null}
+          <div className="flex flex-wrap justify-end gap-2">
+            {connectionStatus === 'connected' || connectionStatus === 'auth_required' ? (
+              <>
+                <Button variant="outline" size="sm" onClick={() => void handleSync()} disabled={isSyncing}>
+                  {isSyncing ? 'Syncing…' : 'Sync Now'}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  onClick={clearSpotify}
+                >
+                  Disconnect
+                </Button>
+              </>
+            ) : connectionStatus === 'connecting' ? (
+              <>
+                <Button variant="outline" size="sm" onClick={() => void handleConnect()}>
+                  Restart connection
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  onClick={clearSpotify}
+                >
+                  Cancel
+                </Button>
+              </>
+            ) : (
+              <Button size="sm" onClick={() => void handleConnect()}>
+                Connect Spotify
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 

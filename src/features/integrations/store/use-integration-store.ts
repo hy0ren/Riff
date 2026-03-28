@@ -5,7 +5,35 @@ import type {
   SpotifyProfile,
   SpotifyReferenceImport,
 } from '@/domain/providers'
+import { ensureSpotifyAccessToken } from '@/lib/providers/spotify-gateway'
 import { readStorageJson, writeStorageJson } from '@/lib/persistence/local-storage'
+
+/** Matches the 30s skew used in `ensureSpotifyAccessToken`. */
+const SPOTIFY_TOKEN_SKEW_MS = 30_000
+
+export type SpotifyConnectionStatus =
+  | 'connected'
+  | 'disconnected'
+  | 'auth_required'
+  | 'connecting'
+
+export function getSpotifyConnectionStatus(auth: SpotifyAuthState): SpotifyConnectionStatus {
+  const accessValid = Boolean(
+    auth.accessToken &&
+      (!auth.expiresAt ||
+        new Date(auth.expiresAt).getTime() > Date.now() + SPOTIFY_TOKEN_SKEW_MS),
+  )
+  if (accessValid) {
+    return 'connected'
+  }
+  if (auth.refreshToken) {
+    return 'auth_required'
+  }
+  if (auth.codeVerifier) {
+    return 'connecting'
+  }
+  return 'disconnected'
+}
 
 const INTEGRATIONS_STORAGE_KEY = 'riff.integrations'
 
@@ -35,6 +63,11 @@ interface IntegrationStoreState extends IntegrationsSnapshot {
     key: 'useForCreationReferences' | 'useForRadioSeeding' | 'autoSyncPlaylists',
     value: boolean,
   ) => void
+  silentRefreshSpotify: () => Promise<void>
+}
+
+export function isSpotifyConnected(state: IntegrationStoreState): boolean {
+  return getSpotifyConnectionStatus(state.spotify.auth) === 'connected'
 }
 
 const defaultSnapshot: IntegrationsSnapshot = {
@@ -57,8 +90,33 @@ function persist(snapshot: IntegrationsSnapshot) {
   writeStorageJson(INTEGRATIONS_STORAGE_KEY, snapshot)
 }
 
-export const useIntegrationStore = create<IntegrationStoreState>((set) => ({
+export const useIntegrationStore = create<IntegrationStoreState>((set, get) => ({
   ...initialSnapshot,
+  silentRefreshSpotify: async () => {
+    const { auth } = get().spotify
+    if (getSpotifyConnectionStatus(auth) === 'connected') {
+      return
+    }
+    if (!auth.refreshToken) {
+      return
+    }
+    try {
+      const nextAuth = await ensureSpotifyAccessToken(auth)
+      set((state) => {
+        const snapshot = {
+          ...state,
+          spotify: {
+            ...state.spotify,
+            auth: nextAuth,
+          },
+        }
+        persist(snapshot)
+        return snapshot
+      })
+    } catch {
+      // Silent on failure; UI uses `getSpotifyConnectionStatus` / `auth_required`.
+    }
+  },
   setSpotifyAuth: (auth) =>
     set((state) => {
       const snapshot = {

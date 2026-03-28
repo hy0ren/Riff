@@ -9,8 +9,9 @@ import {
   RADIO_QUEUE,
   RADIO_SAVED_STATIONS,
 } from '@/mocks/mock-data'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { isSpotifyConnected, useIntegrationStore } from '@/features/integrations/store/use-integration-store'
 import { ListeningHistory } from './components/listening-history'
 import { NowPlayingPanel } from './components/now-playing-panel'
 import { SavedStations } from './components/saved-stations'
@@ -23,12 +24,18 @@ import { toRadioPlayableTrack } from '@/features/playback/lib/playable-track'
 export function RadioPage() {
   const navigate = useNavigate()
   const { currentTrack, setTrack, play, pause } = usePlaybackStore()
+  const spotifyConnected = useIntegrationStore(isSpotifyConnected)
 
   const [station, setStation] = useState(RADIO_ACTIVE_STATION)
   const [track] = useState(RADIO_NOW_PLAYING)
   const [queue, setQueue] = useState(RADIO_QUEUE)
   const [savedStations, setSavedStations] = useState(RADIO_SAVED_STATIONS)
   const [tuning, setTuning] = useState<TuningState>(RADIO_DEFAULT_TUNING)
+
+  const tuningForPanel = useMemo(
+    () => ({ ...tuning, spotifyConnected }),
+    [tuning, spotifyConnected],
+  )
 
   // Station controls
   const handlePlayPause = () => {
@@ -190,9 +197,10 @@ export function RadioPage() {
           <ScrollArea className="flex-1">
             <div className="space-y-4 px-5 py-6 pb-10">
               <TuningPanel
-                tuning={tuning}
+                tuning={tuningForPanel}
                 onChange={handleTuningChange}
                 onReset={handleTuningReset}
+                onConnectSpotify={() => navigate('/settings#integrations')}
               />
               <SavedStations
                 stations={savedStations}

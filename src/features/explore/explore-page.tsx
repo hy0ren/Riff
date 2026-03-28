@@ -2,20 +2,16 @@ import { PageFrame } from '@/components/layout/page-frame'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
-  EXPLORE_CREATORS,
   EXPLORE_FEATURED_TRACK,
   EXPLORE_GENRE_RAILS,
   EXPLORE_RECENT_RELEASES,
-  EXPLORE_REMIX_CHAIN,
   EXPLORE_TRENDING_TRACKS,
 } from '@/mocks/mock-data'
 import { Compass, Radio, Search, Wand2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { CreatorSpotlight } from './components/creator-spotlight'
 import { DiscoverTrackCard } from './components/discover-track-card'
 import { ExploreHero } from './components/explore-hero'
 import { GenreRail } from './components/genre-rail'
-import { RemixChain } from './components/remix-chain'
 import { projectRoutes } from '@/features/projects/lib/project-routes'
 import { resolveProjectId } from '@/features/projects/lib/project-selectors'
 
@@ -87,31 +83,6 @@ export function ExplorePage() {
               />
             ))}
           </div>
-        </section>
-
-        {/* Remix Chain */}
-        <section className="space-y-4">
-          <SectionHeader title="Remix Lineage: Glass Horizon" />
-          <p className="text-[12px] text-[var(--riff-text-muted)]">
-            See how one track evolves through community remixes and reinterpretation
-          </p>
-          <RemixChain
-            nodes={EXPLORE_REMIX_CHAIN}
-            onPlay={() => {}}
-            onRemix={() => navigate('/create')}
-            onOpen={() => {}}
-          />
-        </section>
-
-        {/* Creator Spotlight */}
-        <section className="space-y-4">
-          <SectionHeader title="Creator Spotlight" action={{ label: 'Browse creators', onClick: () => {} }} />
-          <CreatorSpotlight
-            creators={EXPLORE_CREATORS}
-            onView={() => {}}
-            onFollow={() => {}}
-            onRadio={() => navigate('/radio')}
-          />
         </section>
 
         {/* Genre Discovery Rails */}

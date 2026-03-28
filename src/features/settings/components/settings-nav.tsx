@@ -1,12 +1,10 @@
 import { cn } from '@/lib/utils'
 import {
-  Bell,
   Download,
   HardDrive,
   Palette,
   Play,
   Plug,
-  Shield,
   SlidersHorizontal,
   Sparkles,
   User,
@@ -20,8 +18,6 @@ const NAV_ITEMS = [
   { id: 'creation', label: 'Creation', icon: Sparkles },
   { id: 'exports', label: 'Exports', icon: Download },
   { id: 'storage', label: 'Storage', icon: HardDrive },
-  { id: 'privacy', label: 'Privacy', icon: Shield },
-  { id: 'notifications', label: 'Notifications', icon: Bell },
   { id: 'integrations', label: 'Integrations', icon: Plug },
   { id: 'audio', label: 'Audio', icon: Volume2 },
   { id: 'advanced', label: 'Advanced', icon: SlidersHorizontal },

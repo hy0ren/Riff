@@ -1,72 +1,61 @@
+import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
-import type { LucideIcon } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
-interface EmptyStateAction {
+export interface EmptyStateAction {
   label: string
   onClick: () => void
-  variant?: 'default' | 'ghost' | 'outline'
 }
 
-interface EmptyStateProps {
-  icon: LucideIcon
+export interface EmptyStateProps {
+  /** Visual anchor — pass an icon, illustration, or small composition */
+  icon: ReactNode
   title: string
   description: string
   action?: EmptyStateAction
-  secondaryAction?: EmptyStateAction
+  /** Tighter padding for nested panels */
   compact?: boolean
+  className?: string
 }
 
 export function EmptyState({
-  icon: Icon,
+  icon,
   title,
   description,
   action,
-  secondaryAction,
   compact = false,
+  className,
 }: EmptyStateProps) {
   return (
     <div
-      className="flex flex-col items-center justify-center rounded-2xl text-center"
-      style={{
-        background: 'var(--riff-surface-low)',
-        border: '1px solid rgba(255,255,255,0.04)',
-        padding: compact ? '2rem 1.5rem' : '3.5rem 2rem',
-      }}
+      className={cn(
+        'flex flex-col items-center justify-center rounded-2xl border border-[var(--riff-surface-highest)] bg-[var(--riff-surface-low)] text-center shadow-[0_0_0_1px_var(--riff-glow)_inset]',
+        compact ? 'px-6 py-10' : 'px-8 py-14 sm:px-12',
+        className,
+      )}
     >
       <div
-        className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl"
-        style={{ background: 'var(--riff-surface-mid)' }}
+        className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--riff-surface-highest)] bg-[var(--riff-surface-mid)] text-[var(--riff-accent-dim)]"
+        style={{ boxShadow: '0 0 24px var(--riff-glow)' }}
       >
-        <Icon className="h-6 w-6 text-[var(--riff-text-faint)]" />
+        {icon}
       </div>
-      <h3 className="font-display text-sm font-bold text-[var(--riff-text-primary)]">{title}</h3>
-      <p className="mt-1.5 max-w-xs text-[12px] leading-relaxed text-[var(--riff-text-muted)]">
+      <h3 className="font-display text-base font-semibold tracking-tight text-[var(--riff-text-primary)]">
+        {title}
+      </h3>
+      <p className="mt-2 max-w-sm text-[13px] leading-relaxed text-[var(--riff-text-muted)]">
         {description}
       </p>
-      {(action || secondaryAction) && (
-        <div className="mt-5 flex items-center gap-2">
-          {action && (
-            <Button
-              onClick={action.onClick}
-              variant={action.variant ?? 'default'}
-              size="sm"
-              className="h-8 rounded-lg px-4 text-[12px] font-semibold"
-            >
-              {action.label}
-            </Button>
-          )}
-          {secondaryAction && (
-            <Button
-              onClick={secondaryAction.onClick}
-              variant={secondaryAction.variant ?? 'ghost'}
-              size="sm"
-              className="h-8 rounded-lg px-4 text-[12px] font-semibold text-[var(--riff-text-muted)]"
-            >
-              {secondaryAction.label}
-            </Button>
-          )}
-        </div>
-      )}
+      {action ? (
+        <Button
+          type="button"
+          onClick={action.onClick}
+          size="sm"
+          className="mt-6 h-9 rounded-lg bg-[var(--riff-accent)] px-5 text-[12px] font-semibold text-white shadow-[0_0_20px_var(--riff-glow-strong)] hover:bg-[var(--riff-accent)]/90"
+        >
+          {action.label}
+        </Button>
+      ) : null}
     </div>
   )
 }

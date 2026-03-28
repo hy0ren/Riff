@@ -1,6 +1,7 @@
+import type { PracticeFocusArea } from '@/domain/practice-session'
 import type { Project, ProjectVersion } from '@/domain/project'
 import type { GeminiPracticeBriefResult } from '@/domain/providers'
-import type { PracticeMode } from '../types/practice-session'
+import type { PracticeMode, SessionState } from '../types/practice-session'
 import { Badge } from '@/components/ui/badge'
 import { Mic2, Guitar, Layers, Target, Activity, Music, Piano } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -10,11 +11,14 @@ interface PracticeContextPanelProps {
   version: ProjectVersion | undefined
   practiceMode: PracticeMode
   onModeChange: (mode: PracticeMode) => void
-  focusArea: string
-  onFocusChange: (area: string) => void
+  focusArea: PracticeFocusArea
+  onFocusChange: (area: PracticeFocusArea) => void
   selectedSection: string
   onSectionChange: (section: string) => void
   practiceBrief: GeminiPracticeBriefResult | null
+  sessionState?: SessionState
+  pastSessionCount?: number
+  onReconnect?: () => void
 }
 
 const MODES: { id: PracticeMode; icon: typeof Mic2; label: string }[] = [
@@ -166,7 +170,7 @@ export function PracticeContextPanel({
         </div>
         <select 
           value={focusArea}
-          onChange={(e) => onFocusChange(e.target.value)}
+          onChange={(e) => onFocusChange(e.target.value as PracticeFocusArea)}
           className="w-full rounded-lg bg-[var(--riff-surface-mid)] px-3 py-2.5 text-sm text-[var(--riff-text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--riff-accent)] appearance-none"
           style={{ border: '1px solid rgba(255,255,255,0.04)' }}
         >
@@ -192,7 +196,7 @@ export function PracticeContextPanel({
             {practiceBrief.summary}
           </p>
           <div className="mt-3 flex flex-col gap-1.5">
-            {practiceBrief.cues.slice(0, 3).map((cue) => (
+            {(practiceBrief.cues || []).slice(0, 3).map((cue) => (
               <p key={cue} className="text-xs text-[var(--riff-text-muted)]">
                 • {cue}
               </p>

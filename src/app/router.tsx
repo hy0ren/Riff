@@ -33,7 +33,7 @@ export const router = createBrowserRouter([
       { path: 'explore', element: <ExplorePage /> },
       { path: 'exports', element: <ExportsPage /> },
       { path: 'settings', element: <SettingsPage /> },
-      { path: 'integrations/spotify/callback', element: <SpotifyCallbackPage /> },
+      { path: 'spotify-callback', element: <SpotifyCallbackPage /> },
       { path: 'track/:id', element: <LegacyTrackRedirect /> },
       { path: 'projects/:projectId', element: <TrackDetailsPage /> },
       { path: 'projects/:projectId/versions/:versionId', element: <TrackDetailsPage /> },

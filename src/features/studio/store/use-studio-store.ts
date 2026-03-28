@@ -36,9 +36,11 @@ interface StudioState {
   interpretationStatus: 'idle' | 'refreshing'
   quickRefinementText: string
   activeGenerationRunId: string | null
+  generationError: string | null
   compareMode: boolean
   selectedVersionIds: string[]
   hydrateProject: (projectId: string) => void
+  clearGenerationError: () => void
   setQuickRefinementText: (value: string) => void
   refreshInterpretation: (projectId: string) => Promise<void>
   setSelectedSourceSet: (projectId: string, sourceSetId: string) => Promise<void>
@@ -215,6 +217,7 @@ export const useStudioStore = create<StudioState>((set) => ({
   interpretationStatus: 'idle',
   quickRefinementText: '',
   activeGenerationRunId: null,
+  generationError: null,
   compareMode: false,
   selectedVersionIds: [],
   hydrateProject: (projectId) => {
@@ -229,8 +232,10 @@ export const useStudioStore = create<StudioState>((set) => ({
       activeGenerationRunId:
         project.generationRuns[project.generationRuns.length - 1]?.id ?? null,
       selectedVersionIds: project.activeVersionId ? [project.activeVersionId] : [],
+      generationError: null,
     })
   },
+  clearGenerationError: () => set({ generationError: null }),
   setQuickRefinementText: (value) => set({ quickRefinementText: value }),
   refreshInterpretation: async (projectId) => {
     const sourceSetId = useStudioStore.getState().selectedSourceSetId
@@ -431,6 +436,7 @@ export const useStudioStore = create<StudioState>((set) => ({
     set({
       activeGenerationRunId: generationRun.id,
       quickRefinementText: '',
+      generationError: null,
     })
 
     useProjectStore.getState().updateProject(projectId, (currentProject) => ({
@@ -529,20 +535,28 @@ export const useStudioStore = create<StudioState>((set) => ({
         }
       })
     } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Lyria generation failed unexpectedly.'
+      const generationError =
+        error instanceof Error && error.message.trim().length > 0
+          ? `Generation failed: ${error.message}`
+          : 'Generation failed. Check your connection and Lyria settings, then try again.'
+
       useProjectStore.getState().updateProject(projectId, (currentProject) => ({
         ...currentProject,
         status: currentProject.status === 'archived' ? 'archived' : 'draft',
         generationRuns: currentProject.generationRuns.map((candidate) =>
           candidate.id === generationRun.id
             ? updateGenerationRunStatus(candidate, 'failed', {
-                errorMessage:
-                  error instanceof Error ? error.message : 'Lyria generation failed.',
+                errorMessage,
                 failureCode: 'generation_failed',
               })
             : candidate,
         ),
         updatedAt: nowIso(),
       }))
+
+      set({ generationError })
     }
   },
 }))
