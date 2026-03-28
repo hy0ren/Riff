@@ -613,46 +613,12 @@ export const useStudioStore = create<StudioState>((set) => ({
         project: projectAfterRun,
         generationRun: completedRun,
       })
-
-      let insight
-      try {
-        insight = await summarizeTrackVersion({
-          projectId,
-          projectTitle: projectAfterRun.title,
-          versionId: nextVersion.id,
-          blueprint: generationBlueprint,
-          versionName: nextVersion.name,
-          notes: providerResult.summary,
-          audioDataUrl:
-            providerResult.artifactBase64 && providerResult.artifactMimeType
-              ? `data:${providerResult.artifactMimeType};base64,${providerResult.artifactBase64}`
-              : undefined,
-          structure: nextVersion.structure,
-          lyrics: nextVersion.lyrics,
-        })
-      } catch {
-        insight = undefined
-      }
-
-      let generatedCoverUrl: string | undefined
-      try {
-        generatedCoverUrl = await generateProjectCoverArt({
-          projectTitle: projectAfterRun.title,
-          blueprint: generationBlueprint,
-          summary: providerResult.summary,
-        })
-      } catch {
-        generatedCoverUrl = undefined
-      }
-
-      const finalizedVersion = {
+      const persistedVersion = {
         ...nextVersion,
         duration: providerResult.durationSeconds || nextVersion.duration,
         isActive: runningRun.modifiers?.loadOnSuccess ?? true,
         notes: providerResult.summary,
-        structure: insight?.chordSections ?? nextVersion.structure,
         lyrics:
-          insight?.lyricSections ??
           parseLyricsTextIntoSections(
             nextVersion.id,
             providerResult.lyricsText,
@@ -674,36 +640,97 @@ export const useStudioStore = create<StudioState>((set) => ({
                 },
               ]
             : nextVersion.exports,
-        insight,
       }
 
       useProjectStore.getState().updateProject(projectId, (currentProject) => {
-        const versions =
+        const nextVersions =
           runningRun.modifiers?.loadOnSuccess ?? true
             ? currentProject.versions.map((version) => ({ ...version, isActive: false }))
             : currentProject.versions
 
         return {
           ...currentProject,
-          status: currentProject.status === 'archived' ? 'archived' : 'draft',
-          coverUrl: generatedCoverUrl ?? currentProject.coverUrl,
-          artUrl: generatedCoverUrl ?? currentProject.artUrl,
-          versions: [...versions, finalizedVersion],
+          status: currentProject.status === 'archived' ? 'archived' : 'finished',
+          versions: [...nextVersions, persistedVersion],
           activeVersionId:
             runningRun.modifiers?.loadOnSuccess ?? true
-              ? finalizedVersion.id
+              ? persistedVersion.id
               : currentProject.activeVersionId,
-          versionCount: versions.length + 1,
+          versionCount: nextVersions.length + 1,
           generationRuns: currentProject.generationRuns.map((candidate) =>
             candidate.id === generationRun.id
               ? updateGenerationRunStatus(completedRun, 'succeeded', {
-                  outputVersionId: finalizedVersion.id,
+                  outputVersionId: persistedVersion.id,
                 })
               : candidate,
           ),
           updatedAt: nowIso(),
         }
       })
+
+      const persistedProject = getProject(projectId)
+      if (!persistedProject) {
+        set({
+          activeGenerationRunId: generationRun.id,
+          selectedVersionIds:
+            runningRun.modifiers?.loadOnSuccess ?? true ? [persistedVersion.id] : [],
+        })
+        return
+      }
+
+      set({
+        activeGenerationRunId: generationRun.id,
+        selectedVersionIds:
+          runningRun.modifiers?.loadOnSuccess ?? true ? [persistedVersion.id] : [],
+      })
+
+      let insight
+      try {
+        insight = await summarizeTrackVersion({
+          projectId,
+          projectTitle: persistedProject.title,
+          versionId: persistedVersion.id,
+          blueprint: generationBlueprint,
+          versionName: persistedVersion.name,
+          notes: providerResult.summary,
+          audioDataUrl: persistedVersion.audioUrl,
+          structure: persistedVersion.structure,
+          lyrics: persistedVersion.lyrics,
+        })
+      } catch {
+        insight = undefined
+      }
+
+      let generatedCoverUrl: string | undefined
+      try {
+        generatedCoverUrl = await generateProjectCoverArt({
+          projectTitle: persistedProject.title,
+          blueprint: generationBlueprint,
+          summary: providerResult.summary,
+        })
+      } catch {
+        generatedCoverUrl = undefined
+      }
+
+      if (insight || generatedCoverUrl) {
+        useProjectStore.getState().updateProject(projectId, (currentProject) => ({
+          ...currentProject,
+          status: currentProject.status === 'archived' ? 'archived' : 'finished',
+          coverUrl: generatedCoverUrl ?? currentProject.coverUrl,
+          artUrl: generatedCoverUrl ?? currentProject.artUrl,
+          versions: currentProject.versions.map((version) =>
+            version.id === persistedVersion.id
+              ? {
+                  ...version,
+                  structure: insight?.chordSections ?? version.structure,
+                  lyrics: insight?.lyricSections ?? version.lyrics,
+                  insight: insight ?? version.insight,
+                }
+              : version,
+          ),
+          updatedAt: nowIso(),
+        }))
+      }
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Lyria generation failed unexpectedly.'

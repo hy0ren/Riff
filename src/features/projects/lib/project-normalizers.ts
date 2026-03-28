@@ -406,7 +406,32 @@ function createGenerationRuns(
   blueprints: Blueprint[],
 ): GenerationRun[] {
   if (project.generationRuns?.length) {
-    return project.generationRuns
+    const versionIds = new Set(versions.map((version) => version.id))
+    const now = Date.now()
+
+    return project.generationRuns.map((run) => {
+      if (run.outputVersionId && versionIds.has(run.outputVersionId)) {
+        return updateGenerationRunStatus(run, 'succeeded', {
+          outputVersionId: run.outputVersionId,
+          completedAt: run.completedAt ?? run.updatedAt ?? run.createdAt,
+        })
+      }
+
+      if (run.status === 'queued' || run.status === 'running') {
+        const ageMs = now - new Date(run.updatedAt ?? run.createdAt).getTime()
+        if (Number.isFinite(ageMs) && ageMs > 5 * 60_000) {
+          return updateGenerationRunStatus(run, 'failed', {
+            errorMessage:
+              run.errorMessage ??
+              'This generation was interrupted before it finished and was reset after reload.',
+            failureCode: run.failureCode ?? 'generation_interrupted',
+            completedAt: run.completedAt ?? run.updatedAt ?? run.createdAt,
+          })
+        }
+      }
+
+      return run
+    })
   }
 
   return createSyntheticGenerationRuns(
@@ -535,6 +560,27 @@ function getActiveBlueprint(project: Project, blueprints: Blueprint[]): Blueprin
   )
 }
 
+function deriveProjectStatus(
+  project: Project,
+  versions: TrackVersion[],
+  generationRuns: GenerationRun[],
+): Project['status'] {
+  if (project.status === 'archived') {
+    return 'archived'
+  }
+
+  const hasInFlightRun = generationRuns.some((run) => run.status === 'queued' || run.status === 'running')
+  if (hasInFlightRun) {
+    return 'generating'
+  }
+
+  if (versions.length > 0) {
+    return 'finished'
+  }
+
+  return 'draft'
+}
+
 export function normalizeProject(project: Project): PersistedProject {
   const sourceInputs = createSourceInputs(project)
   const sourceSets = createSourceSets(project, sourceInputs)
@@ -610,8 +656,11 @@ export function normalizeProject(project: Project): PersistedProject {
     collection: project.collection,
   }
 
+  const normalizedStatus = deriveProjectStatus(project, versions, generationRuns)
+
   return {
     ...project,
+    status: normalizedStatus,
     sourceInputs,
     sourceSets,
     interpretations,
