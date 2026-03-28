@@ -50,16 +50,21 @@ export function StorageSection() {
   const projects = useProjectStore((state) => state.projects)
   const integrationState = useIntegrationStore((state) => state.spotify)
   const clearSpotifyCache = useIntegrationStore((state) => state.clearSpotifyCache)
-  const settingsSnapshot = useSettingsStore((state) => ({
-    appearance: state.appearance,
-    playback: state.playback,
-    creation: state.creation,
-    exports: state.exports,
-    advanced: state.advanced,
-  }))
+  const appearance = useSettingsStore((state) => state.appearance)
+  const playback = useSettingsStore((state) => state.playback)
+  const creation = useSettingsStore((state) => state.creation)
+  const exports = useSettingsStore((state) => state.exports)
+  const advanced = useSettingsStore((state) => state.advanced)
   const [feedback, setFeedback] = useState<string | null>(null)
 
   const stats = useMemo(() => {
+    const settingsSnapshot = {
+      appearance,
+      playback,
+      creation,
+      exports,
+      advanced,
+    }
     const projectBytes = JSON.stringify(projects).length
     const settingsBytes = JSON.stringify(settingsSnapshot).length
     const integrationBytes = JSON.stringify(integrationState).length
@@ -72,7 +77,7 @@ export function StorageSection() {
       coverBytes,
       totalBytes: projectBytes + settingsBytes + integrationBytes,
     }
-  }, [integrationState, projects, settingsSnapshot])
+  }, [advanced, appearance, creation, exports, integrationState, playback, projects])
 
   const handleOpenExportFolder = async () => {
     try {

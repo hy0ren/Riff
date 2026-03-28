@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Navigate, useParams } from 'react-router-dom'
 import { PageFrame } from '@/components/layout/page-frame'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -24,11 +25,16 @@ import {
   getVersionStructure,
 } from '@/features/projects/lib/project-details'
 import { exportAssetToDisk } from '@/lib/platform/fs-commands'
+import { useProjectStore } from '@/features/projects/store/use-project-store'
+import { summarizeTrackVersion } from '@/lib/providers/gemini-gateway'
 
 export function TrackDetailsPage() {
   const { projectId, versionId } = useParams()
   const matchedProject = useMatchedProject(projectId)
   const activeProject = useResolvedProject(projectId)
+  const updateProject = useProjectStore((state) => state.updateProject)
+  const [isAnalyzingLyrics, setIsAnalyzingLyrics] = useState(false)
+
   const activeVersion = activeProject.versions
     ? getProjectVersion(activeProject, versionId)
     : undefined
@@ -55,6 +61,43 @@ export function TrackDetailsPage() {
 
   if (!activeVersion) {
     return <Navigate to={projectRoutes.details(activeProject.id)} replace />
+  }
+
+  const handleAnalyzeLyrics = async () => {
+    if (!activeVersion?.audioUrl || !activeBlueprint || isAnalyzingLyrics) {
+      return
+    }
+
+    setIsAnalyzingLyrics(true)
+    try {
+      const insight = await summarizeTrackVersion({
+        projectId: activeProject.id,
+        projectTitle: activeProject.title,
+        versionId: activeVersion.id,
+        blueprint: activeBlueprint,
+        versionName: activeVersion.name,
+        notes: activeVersion.notes,
+        audioDataUrl: activeVersion.audioUrl,
+        structure: activeVersion.structure,
+        lyrics: activeVersion.lyrics,
+      })
+
+      updateProject(activeProject.id, (project) => ({
+        ...project,
+        versions: project.versions.map((v) =>
+          v.id === activeVersion.id
+            ? {
+                ...v,
+                insight,
+                structure: insight.chordSections ?? v.structure,
+                lyrics: insight.lyricSections ?? v.lyrics,
+              }
+            : v,
+        ),
+      }))
+    } finally {
+      setIsAnalyzingLyrics(false)
+    }
   }
 
   const handleExportLyrics = async () => {
@@ -153,6 +196,10 @@ export function TrackDetailsPage() {
                 <LyricsTab
                   lyrics={activeLyrics}
                   structure={activeStructure}
+                  hasAudio={Boolean(activeVersion.audioUrl)}
+                  hasVocals={activeBlueprint?.vocalsEnabled}
+                  isAnalyzing={isAnalyzingLyrics}
+                  onAnalyze={() => void handleAnalyzeLyrics()}
                   onExport={() => void handleExportLyrics()}
                 />
               </TabsContent>

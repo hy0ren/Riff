@@ -1,9 +1,13 @@
 import type { LyricsSection, TrackStructureNode } from '@/domain/blueprint'
-import { Download, Mic2 } from 'lucide-react'
+import { Download, Loader2, Mic2, Sparkles } from 'lucide-react'
 
 interface LyricsTabProps {
   lyrics?: LyricsSection[]
   structure?: TrackStructureNode[]
+  hasAudio?: boolean
+  hasVocals?: boolean
+  isAnalyzing?: boolean
+  onAnalyze?: () => void
   onExport?: () => void
 }
 
@@ -20,14 +24,52 @@ function formatTimestamp(seconds: number): string {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
 }
 
-export function LyricsTab({ lyrics, structure, onExport }: LyricsTabProps) {
+export function LyricsTab({ lyrics, structure, hasAudio, hasVocals, isAnalyzing, onAnalyze, onExport }: LyricsTabProps) {
   const safeLyrics = lyrics?.filter((s) => s.label && s.lines?.length).map((s) => ({
     ...s,
     lines: s.lines ?? [],
   }))
 
   if (!safeLyrics?.length) {
-    return <div className="p-8 text-center text-[var(--riff-text-muted)]">No vocal or lyric data for this version.</div>
+    return (
+      <div className="flex flex-col items-center justify-center gap-5 rounded-2xl border border-dashed border-[var(--riff-surface-high)] bg-[var(--riff-surface-highest)]/40 px-8 py-16 text-center">
+        <Mic2 className="h-8 w-8 text-[var(--riff-text-faint)]" />
+        <div>
+          <p className="font-semibold text-[var(--riff-text-primary)]">
+            {hasVocals === false
+              ? 'Instrumental version — no lyrics to display.'
+              : 'No lyrics transcribed yet.'}
+          </p>
+          <p className="mt-1 text-sm text-[var(--riff-text-muted)]">
+            {hasVocals === false
+              ? 'This track was generated without vocals.'
+              : hasAudio
+                ? 'Gemini can listen to the audio and transcribe every lyric line word-for-word.'
+                : 'Generate a track first, then analyze it to extract lyrics.'}
+          </p>
+        </div>
+        {hasAudio && hasVocals !== false && onAnalyze && (
+          <button
+            type="button"
+            onClick={onAnalyze}
+            disabled={isAnalyzing}
+            className="inline-flex items-center gap-2 rounded-xl bg-[var(--riff-accent)] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_0_16px_var(--riff-glow)] transition hover:bg-[var(--riff-accent-light)] disabled:opacity-60"
+          >
+            {isAnalyzing ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Analyzing audio…
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4" />
+                Analyze &amp; Transcribe Lyrics
+              </>
+            )}
+          </button>
+        )}
+      </div>
+    )
   }
 
   return (

@@ -8,6 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
     "firebase:login": "firebase login",
     "firebase:deploy": "firebase deploy",
     "firebase:hosting": "firebase deploy --only hosting",
