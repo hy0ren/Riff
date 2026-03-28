@@ -1,8 +1,8 @@
 # Riff — The AI-Native Music Studio
 
-Riff is a cutting-edge, AI-powered music creation and study platform. It bridges the gap between raw inspiration and polished musical output, transforming fragments of ideas—hums, guitar riffs, lyrics, or Spotify playlists—into structured musical **Blueprints** and full-song audio generations.
+Riff is a professional, AI-powered music creation and study platform designed for composers and modern student musicians. It transforms musical fragments—hums, riffs, lyrics, or external references—into structured **Blueprints** and full-song audio generations with **cloud-scale persistence**.
 
-Designed for both composers and student musicians, Riff combines Google's flagship generative AI models (**Gemini** and **Lyria**) with a premium, desktop-native user experience.
+Built on **Google's Gemini and Lyria** models and powered by **Firebase**, Riff combines the power of state-of-the-art generative AI with the reliability of cross-device synchronization and professional-grade session management.
 
 ---
 
@@ -11,85 +11,94 @@ Designed for both composers and student musicians, Riff combines Google's flagsh
 Riff is organized into three primary pillars, accessible via the main navigation:
 
 ### 🎸 Studio
-The creative engine of Riff. In the Studio, users define **Blueprints**, which are structured specifications for a song. 
-- **Blueprints** include lyrics, chord progressions, structure (sections), and tonal settings.
-- **AI Refinement**: Collaborate with a persistent AI "Co-author" to iterate on section structure, chord choices, and lyrical themes.
+The creative heart of the platform. Here, bits of inspiration become **Blueprints**—structured JSON definitions of a song’s DNA.
+- **AI-Native Blueprinting**: Collaborate with a persistent AI co-author to iterate on section structure, chord choices, and lyrical themes.
+- **Interpretation Engine**: Multimodal ingestion of audio fragments (hums, riffs) and sheet music into editable structures.
 
 ### 🎓 Coach
-The practice and learning companion. Riff automatically generates "Learn Packs" for your musical creations.
-- **Study Guides**: Section-by-section breakdowns of your song with chord charts and memory cues.
-- **Practice Focus**: Targeted drill recommendations based on the complexity of your arrangement.
+The performance companion. Every creation in Riff automatically generates a practice-ready "Learn Pack."
+- **Section Guides**: Automated breakdowns of songs with chord cues, memory aids, and lyrical markers.
+- **Practice Focus**: Dynamic feedback and study recommendations provided by the Coach AI.
 
 ### 📚 Library
 Your centralized vault for musical intelligence.
-- **Projects**: Manage multi-version song projects.
-- **Source Management**: Organize your raw inputs (audio samples, text, or external references).
-- **Exports**: Access generated stems, high-quality audio files, and exported MIDI data.
+- **Cloud-Persistence**: Projects, sources, and blueprints are synced across devices via Firestore.
+- **Export Management**: Organized access to higher-fidelity audio generations, vocal-only stems, and MIDI layouts.
 
 ---
 
-## ✨ Key Features
+## ✨ Specialized Features
 
-### 🧠 AI-Driven Interpretation
-Riff doesn't just "generate" music—it interprets it. Using Gemini 1.5/2.0 Pro's multimodal capabilities, Riff can ingest:
-- **Audio Hums/Riffs**: Analyzes pitch center, BPM, and rhythmic feel.
-- **Lyrics/Text**: Infers musical mood and structural intent.
-- **Sheet Music**: Extracts harmonic and structural data from notational docs.
-- **Spotify Data**: Uses playlist and track metadata to seed new project blueprints.
+### 🧠 Multimodal Ingestion
+Riff takes input from any source you provide:
+- **Audio (Hums/Riffs)**: Analyzes melodic contour, BPM, and rhythmic feel.
+- **Lyrics/Text**: Infers mood and structural intent from prose or verse.
+- **Data (Spotify)**: Import playlists and track metadata to seed new project blueprints for remixes or study.
 
-### 🌊 Lyria Generation
-Integrated with Google's Lyria model, Riff produces state-of-the-art generative audio including:
-- **Full Song Renders**: High-fidelity audio based on your Studio blueprint.
-- **Multi-Track Vocals**: Pro-level vocal performances in the selected vocal style.
-- **Stem Separation**: Automatically generates separate tracks for bass, drums, vocals, and harmony.
+### 🌊 Lyria-Powered Studio
+Uses Google’s top-tier Lyria model for high-fidelity music synthesis:
+- **Full Renders**: High-quality audio outputs based on your Studio Blueprint.
+- **Style Consistency**: Ensures vocal performances and instrumental beds remain consistent across sections.
 
 ---
 
 ## 🛠️ Technical Stack
 
-- **Frontend**: React 19 + TypeScript + Vite.
-- **Styling**: TailwindCSS with a custom, premium color palette and glassmorphism components.
-- **Intelligence**: Google Gemini (via `@google/generative-ai`).
-- **Generation**: Google Lyria API integration.
-- **State Management**: Zustand for reactive, performance-optimized stores.
-- **Desktop**: Tauri-ready architecture for native desktop performance.
+- **Core**: React 19 + TypeScript + Vite.
+- **Cloud & Auth**: Firebase Authentication (Google OAuth) + Cloud Firestore.
+- **AI Layer**: Google Gemini 1.5/2.0 + Google Lyria generative audio.
+- **State**: Zustand for responsive, reactive frontend state.
+- **Environment**: Managed via VITE_ environment variables for local security.
 
 ---
 
 ## 🚀 Local Setup
 
 ### Prerequisites
-- [Node.js](https://nodejs.org/) (v18+)
-- A Google AI Studio API Key ([Get one here](https://aistudio.google.com/apikey))
-- (Optional) Spotify Developer credentials for playlist imports.
+1.  [Node.js](https://nodejs.org/) (v18+)
+2.  Google AI Studio API Key ([Get one here](https://aistudio.google.com/apikey))
+3.  A Firebase project ([Create one in the console](https://console.firebase.google.com/))
+4.  Spotify Developer credentials for track imports.
 
 ### Installation
 
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/hy0ren/Riff.git
-   cd Riff
-   ```
+1.  **Clone the repository**:
+    ```bash
+    git clone https://github.com/hy0ren/Riff.git
+    cd Riff
+    ```
 
-2. **Set up environment variables**:
-   Create a `.env` file in the root directory:
-   ```env
-   VITE_GOOGLE_API_KEY=your_gemini_api_key_here
-   VITE_GEMINI_MODEL=gemini-3-flash-preview
-   VITE_LYRIA_MODEL=lyria-3-pro-preview
-   VITE_SPOTIFY_CLIENT_ID=your_spotify_client_id_here
-   VITE_SPOTIFY_REDIRECT_URI=http://127.0.0.1:5173/spotify-callback
-   ```
+2.  **Set up environment variables**:
+    Create a `.env` file in the root directory and populate it with the 13+ required keys:
+    ```env
+    # Google AI (Gemini & Lyria)
+    VITE_GOOGLE_API_KEY=your_key_here
+    VITE_GEMINI_MODEL=gemini-3-flash-preview
+    VITE_LYRIA_MODEL=lyria-3-pro-preview
 
-3. **Install dependencies**:
-   ```bash
-   npm install
-   ```
+    # Spotify (OAuth Client ID)
+    VITE_SPOTIFY_CLIENT_ID=your_client_id_here
+    VITE_SPOTIFY_REDIRECT_URI=http://127.0.0.1:5173/spotify-callback
 
-4. **Start the development server**:
-   ```bash
-   npm run dev
-   ```
+    # Firebase (Web App Config)
+    VITE_FIREBASE_API_KEY=your_firebase_api_key_here
+    VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+    VITE_FIREBASE_PROJECT_ID=your-project-id
+    VITE_FIREBASE_STORAGE_BUCKET=your-project.firebasestorage.app
+    VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+    VITE_FIREBASE_APP_ID=your_app_id
+    VITE_FIREBASE_MEASUREMENT_ID=your_measurement_id
+    ```
+
+3.  **Install dependencies**:
+    ```bash
+    npm install
+    ```
+
+4.  **Start the development server**:
+    ```bash
+    npm run dev
+    ```
 
 ---
 

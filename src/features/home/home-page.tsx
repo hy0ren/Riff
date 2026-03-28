@@ -1,7 +1,6 @@
 import { PageFrame } from '@/components/layout/page-frame'
 import { Button } from '@/components/ui/button'
 import { 
-  Sparkles, 
   ArrowRight, 
   Mic, 
   BookOpen, 
@@ -40,11 +39,6 @@ export function HomePage() {
         }}
       >
         <div className="relative z-10 max-w-2xl">
-          <div className="riff-ui-caps mb-4 flex items-center gap-2 text-[12px] font-bold text-[var(--riff-accent-light)]">
-            <Sparkles className="h-4 w-4" />
-            <span>AI Music Creation Engine v3.0</span>
-          </div>
-          
           <h1 className="riff-display-tight font-display text-4xl font-extrabold tracking-tight text-white mb-4 leading-tight">
             Turn your musical ideas <br />
             <span className="text-[var(--riff-accent-light)]">into finished masterpieces.</span>

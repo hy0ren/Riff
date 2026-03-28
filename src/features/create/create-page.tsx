@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { LucideIcon } from 'lucide-react'
 import {
+  ChevronDown,
   ChevronRight,
   Compass,
   FileText,
@@ -9,6 +10,7 @@ import {
   Music,
   PauseCircle,
   PlusCircle,
+  Search,
   Share,
   Sparkles,
   Type,
@@ -30,6 +32,7 @@ import { cn } from '@/lib/utils'
 import { getProjectVersion } from '@/features/projects/lib/project-selectors'
 import {
   beginSpotifyAuthorization,
+  ensureSpotifyAccessToken,
 } from '@/lib/providers/spotify-gateway'
 import { analyzeAudioSource } from '@/lib/providers/gemini-gateway'
 import {
@@ -51,6 +54,8 @@ import {
   getSpotifyConnectionStatus,
   useIntegrationStore,
 } from '@/features/integrations/store/use-integration-store'
+import { fetchSpotifyPlaylistTracks } from '@/services/spotify/client'
+import type { SpotifyReferenceImport } from '@/domain/providers'
 
 interface SourceOption {
   type: SourceSelectionType
@@ -188,6 +193,13 @@ export function CreatePage() {
   const projects = useProjectStore((state) => state.projects)
   const spotify = useIntegrationStore((state) => state.spotify)
   const setSpotifyAuth = useIntegrationStore((state) => state.setSpotifyAuth)
+
+  // Spotify picker state
+  const [spotifySearch, setSpotifySearch] = useState('')
+  const [spotifyTab, setSpotifyTab] = useState<'tracks' | 'playlists'>('tracks')
+  const [expandedPlaylistId, setExpandedPlaylistId] = useState<string | null>(null)
+  const [playlistTracksCache, setPlaylistTracksCache] = useState<Map<string, SpotifyReferenceImport[]>>(new Map())
+  const [loadingPlaylistId, setLoadingPlaylistId] = useState<string | null>(null)
   const recorderRef = useRef<MediaRecorder | null>(null)
   const recorderChunksRef = useRef<Blob[]>([])
   const recorderStreamRef = useRef<MediaStream | null>(null)
@@ -416,6 +428,30 @@ export function CreatePage() {
   const chordSectionSuggestion = buildChordSectionSuggestion(chordDraft.text ?? '', {
     keyChangeAfterBridge: chordDraft.keyChangeAfterBridge,
   })
+
+  const handleLoadPlaylistTracks = useCallback(async (playlistId: string) => {
+    if (playlistTracksCache.has(playlistId)) {
+      setExpandedPlaylistId((current) => (current === playlistId ? null : playlistId))
+      return
+    }
+
+    setLoadingPlaylistId(playlistId)
+    setExpandedPlaylistId(playlistId)
+
+    try {
+      const auth = await ensureSpotifyAccessToken(spotify.auth)
+      if (!auth.accessToken) {
+        return
+      }
+
+      const tracks = await fetchSpotifyPlaylistTracks(playlistId, auth.accessToken)
+      setPlaylistTracksCache((current) => new Map(current).set(playlistId, tracks))
+    } catch {
+      setExpandedPlaylistId(null)
+    } finally {
+      setLoadingPlaylistId(null)
+    }
+  }, [playlistTracksCache, spotify.auth])
 
   const handleContinue = async () => {
     if (!canContinue) {
@@ -966,13 +1002,13 @@ export function CreatePage() {
                       Spotify Reference
                     </p>
                     <h3 className="font-display text-xl text-[var(--riff-text-primary)]">
-                      Use a real linked reference
+                      Pick a song or playlist
                     </h3>
                     <p className="mt-1 text-sm text-[var(--riff-text-muted)]">
-                      Choose one of your synced top tracks or playlists so the Studio source set uses a real Spotify URI instead of a placeholder.
+                      Search your top tracks or browse playlists to select a real Spotify reference for the Studio.
                     </p>
                   </div>
-                  <div className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
+                  <div className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-semibold ${
                     spotifyConnected
                       ? 'bg-[#1DB954]/15 text-[#82f0aa]'
                       : 'bg-amber-500/15 text-amber-200'
@@ -984,7 +1020,7 @@ export function CreatePage() {
                 {!spotifyConnected ? (
                   <div className="mt-4 rounded-2xl border border-dashed border-[var(--riff-surface-high)] bg-[var(--riff-surface-low)] p-4">
                     <p className="text-sm text-[var(--riff-text-muted)]">
-                      Spotify is not linked yet, so this source would otherwise be a stub. Connect it here or from Settings before continuing.
+                      Spotify is not linked yet. Connect it here or from Settings before continuing.
                     </p>
                     <div className="mt-3 flex gap-3">
                       <Button type="button" onClick={() => void handleConnectSpotify()}>
@@ -996,100 +1032,279 @@ export function CreatePage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="mt-4 space-y-4">
-                    <div>
-                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--riff-text-muted)]">
-                        Top Tracks
-                      </p>
-                      <div className="grid gap-2">
-                        {spotify.topTracks.slice(0, 4).map((track) => {
-                          const isSelected = sourceDrafts.spotify?.spotifyUri === track.uri
-                          return (
-                            <button
-                              key={track.id}
-                              type="button"
-                              onClick={() =>
-                                setDraft('spotify', (draft) => ({
-                                  ...draft,
-                                  spotifyReferenceType: 'track',
-                                  spotifyUri: track.uri,
-                                  providerTrackName: track.title,
-                                  artistName: track.artistName,
-                                  playlistName: undefined,
-                                  label: track.title,
-                                  description: `Spotify track reference by ${track.artistName}`,
-                                }))
-                              }
-                              className={`flex items-center justify-between rounded-xl border px-3 py-2 text-left transition ${
-                                isSelected
-                                  ? 'border-[#1DB954]/50 bg-[#1DB954]/10'
-                                  : 'border-[var(--riff-surface-high)] bg-[var(--riff-surface-low)]'
-                              }`}
-                            >
-                              <div>
-                                <p className="text-sm font-semibold text-[var(--riff-text-primary)]">
-                                  {track.title}
-                                </p>
-                                <p className="text-xs text-[var(--riff-text-muted)]">{track.artistName}</p>
-                              </div>
-                              {isSelected ? (
-                                <span className="text-[11px] font-semibold text-[#82f0aa]">Selected</span>
-                              ) : null}
-                            </button>
-                          )
-                        })}
-                      </div>
+                  <div className="mt-4 space-y-3">
+                    {/* Search bar */}
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--riff-text-faint)]" />
+                      <Input
+                        value={spotifySearch}
+                        onChange={(e) => setSpotifySearch(e.target.value)}
+                        placeholder="Search tracks or playlists…"
+                        className="border-[var(--riff-surface-high)] bg-[var(--riff-surface)] pl-8 text-sm"
+                      />
                     </div>
 
-                    <div>
-                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--riff-text-muted)]">
-                        Playlists
-                      </p>
-                      <div className="grid gap-2">
-                        {spotify.playlists.slice(0, 4).map((playlist) => {
-                          const isSelected = sourceDrafts.spotify?.spotifyUri === playlist.uri
-                          return (
-                            <button
-                              key={playlist.id}
-                              type="button"
-                              onClick={() =>
-                                setDraft('spotify', (draft) => ({
-                                  ...draft,
-                                  spotifyReferenceType: 'playlist',
-                                  spotifyUri: playlist.uri,
-                                  playlistName: playlist.name,
-                                  providerTrackName: undefined,
-                                  artistName: undefined,
-                                  label: playlist.name,
-                                  description: `Spotify playlist reference • ${playlist.trackCount} tracks`,
-                                }))
-                              }
-                              className={`flex items-center justify-between rounded-xl border px-3 py-2 text-left transition ${
-                                isSelected
-                                  ? 'border-[#1DB954]/50 bg-[#1DB954]/10'
-                                  : 'border-[var(--riff-surface-high)] bg-[var(--riff-surface-low)]'
-                              }`}
-                            >
-                              <div>
-                                <p className="text-sm font-semibold text-[var(--riff-text-primary)]">
-                                  {playlist.name}
-                                </p>
-                                <p className="text-xs text-[var(--riff-text-muted)]">
-                                  {playlist.trackCount} tracks
-                                </p>
-                              </div>
-                              {isSelected ? (
-                                <span className="text-[11px] font-semibold text-[#82f0aa]">Selected</span>
-                              ) : null}
-                            </button>
-                          )
-                        })}
-                      </div>
+                    {/* Tabs */}
+                    <div className="flex gap-1 rounded-xl border border-[var(--riff-surface-high)] bg-[var(--riff-surface-low)] p-1">
+                      {(['tracks', 'playlists'] as const).map((tab) => (
+                        <button
+                          key={tab}
+                          type="button"
+                          onClick={() => setSpotifyTab(tab)}
+                          className={`flex-1 rounded-lg py-1.5 text-xs font-semibold transition ${
+                            spotifyTab === tab
+                              ? 'bg-[#1DB954]/20 text-[#82f0aa]'
+                              : 'text-[var(--riff-text-muted)] hover:text-[var(--riff-text-primary)]'
+                          }`}
+                        >
+                          {tab === 'tracks' ? `Top Tracks (${spotify.topTracks.length})` : `Playlists (${spotify.playlists.length})`}
+                        </button>
+                      ))}
                     </div>
 
-                    {!sourceDrafts.spotify?.spotifyUri && (
+                    {/* Top Tracks tab */}
+                    {spotifyTab === 'tracks' && (() => {
+                      const query = spotifySearch.trim().toLowerCase()
+                      const filtered = query
+                        ? spotify.topTracks.filter(
+                            (t) =>
+                              t.title.toLowerCase().includes(query) ||
+                              t.artistName.toLowerCase().includes(query),
+                          )
+                        : spotify.topTracks
+
+                      return (
+                        <div className="max-h-72 overflow-y-auto space-y-1.5 pr-1">
+                          {filtered.length === 0 ? (
+                            <p className="py-4 text-center text-sm text-[var(--riff-text-faint)]">
+                              {query ? 'No tracks match your search.' : 'No top tracks synced yet. Sync from Settings.'}
+                            </p>
+                          ) : (
+                            filtered.map((track) => {
+                              const isSelected = sourceDrafts.spotify?.spotifyUri === track.uri
+                              return (
+                                <button
+                                  key={track.id}
+                                  type="button"
+                                  onClick={() =>
+                                    setDraft('spotify', (draft) => ({
+                                      ...draft,
+                                      spotifyReferenceType: 'track',
+                                      spotifyUri: track.uri,
+                                      providerTrackName: track.title,
+                                      artistName: track.artistName,
+                                      playlistName: undefined,
+                                      label: track.title,
+                                      description: `Spotify track reference by ${track.artistName}`,
+                                    }))
+                                  }
+                                  className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-left transition ${
+                                    isSelected
+                                      ? 'border-[#1DB954]/50 bg-[#1DB954]/10'
+                                      : 'border-[var(--riff-surface-high)] bg-[var(--riff-surface-low)] hover:border-[#1DB954]/30'
+                                  }`}
+                                >
+                                  {track.imageUrl ? (
+                                    <img src={track.imageUrl} alt="" className="h-9 w-9 shrink-0 rounded-md object-cover" />
+                                  ) : (
+                                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[var(--riff-surface-mid)]">
+                                      <Music className="h-4 w-4 text-[var(--riff-text-faint)]" />
+                                    </div>
+                                  )}
+                                  <div className="min-w-0 flex-1">
+                                    <p className="truncate text-sm font-semibold text-[var(--riff-text-primary)]">
+                                      {track.title}
+                                    </p>
+                                    <p className="truncate text-xs text-[var(--riff-text-muted)]">{track.artistName}</p>
+                                  </div>
+                                  {isSelected && (
+                                    <span className="shrink-0 text-[11px] font-semibold text-[#82f0aa]">Selected</span>
+                                  )}
+                                </button>
+                              )
+                            })
+                          )}
+                        </div>
+                      )
+                    })()}
+
+                    {/* Playlists tab */}
+                    {spotifyTab === 'playlists' && (() => {
+                      const query = spotifySearch.trim().toLowerCase()
+                      const filteredPlaylists = query
+                        ? spotify.playlists.filter((p) => p.name.toLowerCase().includes(query))
+                        : spotify.playlists
+
+                      return (
+                        <div className="space-y-1.5">
+                          {filteredPlaylists.length === 0 ? (
+                            <p className="py-4 text-center text-sm text-[var(--riff-text-faint)]">
+                              {query ? 'No playlists match your search.' : 'No playlists synced yet. Sync from Settings.'}
+                            </p>
+                          ) : (
+                            filteredPlaylists.map((playlist) => {
+                              const isPlaylistSelected = sourceDrafts.spotify?.spotifyUri === playlist.uri
+                              const isExpanded = expandedPlaylistId === playlist.id
+                              const isLoading = loadingPlaylistId === playlist.id
+                              const playlistTracks = playlistTracksCache.get(playlist.id) ?? []
+                              const filteredTracks = query && isExpanded
+                                ? playlistTracks.filter(
+                                    (t) =>
+                                      t.title.toLowerCase().includes(query) ||
+                                      t.artistName.toLowerCase().includes(query),
+                                  )
+                                : playlistTracks
+
+                              return (
+                                <div key={playlist.id} className="overflow-hidden rounded-xl border border-[var(--riff-surface-high)]">
+                                  {/* Playlist header row */}
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => void handleLoadPlaylistTracks(playlist.id)}
+                                      className="flex flex-1 items-center gap-3 bg-[var(--riff-surface-low)] px-3 py-2.5 text-left transition hover:bg-[var(--riff-surface-mid)]"
+                                    >
+                                      {playlist.imageUrl ? (
+                                        <img src={playlist.imageUrl} alt="" className="h-9 w-9 shrink-0 rounded-md object-cover" />
+                                      ) : (
+                                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[var(--riff-surface-mid)]">
+                                          <Music className="h-4 w-4 text-[var(--riff-text-faint)]" />
+                                        </div>
+                                      )}
+                                      <div className="min-w-0 flex-1">
+                                        <p className="truncate text-sm font-semibold text-[var(--riff-text-primary)]">
+                                          {playlist.name}
+                                        </p>
+                                        <p className="text-xs text-[var(--riff-text-muted)]">
+                                          {playlist.trackCount} tracks
+                                        </p>
+                                      </div>
+                                      {isLoading ? (
+                                        <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[var(--riff-text-faint)]" />
+                                      ) : (
+                                        <ChevronDown className={`h-4 w-4 shrink-0 text-[var(--riff-text-faint)] transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                      )}
+                                    </button>
+                                    {/* Use playlist as reference */}
+                                    <button
+                                      type="button"
+                                      title="Use whole playlist as reference"
+                                      onClick={() =>
+                                        setDraft('spotify', (draft) => ({
+                                          ...draft,
+                                          spotifyReferenceType: 'playlist',
+                                          spotifyUri: playlist.uri,
+                                          playlistName: playlist.name,
+                                          providerTrackName: undefined,
+                                          artistName: undefined,
+                                          label: playlist.name,
+                                          description: `Spotify playlist reference • ${playlist.trackCount} tracks`,
+                                        }))
+                                      }
+                                      className={`mr-2 shrink-0 rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition ${
+                                        isPlaylistSelected
+                                          ? 'border-[#1DB954]/50 bg-[#1DB954]/15 text-[#82f0aa]'
+                                          : 'border-[var(--riff-surface-high)] bg-transparent text-[var(--riff-text-muted)] hover:border-[#1DB954]/30 hover:text-[#82f0aa]'
+                                      }`}
+                                    >
+                                      {isPlaylistSelected ? 'Selected' : 'Use'}
+                                    </button>
+                                  </div>
+
+                                  {/* Expanded track list */}
+                                  {isExpanded && !isLoading && (
+                                    <div className="max-h-56 overflow-y-auto border-t border-[var(--riff-surface-high)] bg-[var(--riff-surface)]/50">
+                                      {filteredTracks.length === 0 ? (
+                                        <p className="px-4 py-3 text-sm text-[var(--riff-text-faint)]">
+                                          {query ? 'No tracks match.' : 'No tracks found in this playlist.'}
+                                        </p>
+                                      ) : (
+                                        filteredTracks.map((track) => {
+                                          const isTrackSelected = sourceDrafts.spotify?.spotifyUri === track.uri
+                                          return (
+                                            <button
+                                              key={track.id}
+                                              type="button"
+                                              onClick={() =>
+                                                setDraft('spotify', (draft) => ({
+                                                  ...draft,
+                                                  spotifyReferenceType: 'track',
+                                                  spotifyUri: track.uri,
+                                                  providerTrackName: track.title,
+                                                  artistName: track.artistName,
+                                                  playlistName: undefined,
+                                                  label: track.title,
+                                                  description: `Spotify track reference by ${track.artistName}`,
+                                                }))
+                                              }
+                                              className={`flex w-full items-center gap-3 px-3 py-2 text-left transition hover:bg-[var(--riff-surface-mid)] ${
+                                                isTrackSelected ? 'bg-[#1DB954]/10' : ''
+                                              }`}
+                                            >
+                                              {track.imageUrl ? (
+                                                <img src={track.imageUrl} alt="" className="h-7 w-7 shrink-0 rounded object-cover" />
+                                              ) : (
+                                                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-[var(--riff-surface-mid)]">
+                                                  <Music className="h-3 w-3 text-[var(--riff-text-faint)]" />
+                                                </div>
+                                              )}
+                                              <div className="min-w-0 flex-1">
+                                                <p className="truncate text-xs font-semibold text-[var(--riff-text-primary)]">
+                                                  {track.title}
+                                                </p>
+                                                <p className="truncate text-[11px] text-[var(--riff-text-muted)]">
+                                                  {track.artistName}
+                                                </p>
+                                              </div>
+                                              {isTrackSelected && (
+                                                <span className="shrink-0 text-[11px] font-semibold text-[#82f0aa]">✓</span>
+                                              )}
+                                            </button>
+                                          )
+                                        })
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            })
+                          )}
+                        </div>
+                      )
+                    })()}
+
+                    {/* Selected track summary */}
+                    {sourceDrafts.spotify?.spotifyUri ? (
+                      <div className="flex items-center gap-3 rounded-xl border border-[#1DB954]/30 bg-[#1DB954]/10 px-3 py-2">
+                        <div className="h-2 w-2 shrink-0 rounded-full bg-[#1DB954]" />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-[#82f0aa]">
+                            {sourceDrafts.spotify.label}
+                          </p>
+                          <p className="truncate text-xs text-[var(--riff-text-muted)]">
+                            {sourceDrafts.spotify.description}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setDraft('spotify', (draft) => ({
+                              ...draft,
+                              spotifyUri: undefined,
+                              spotifyReferenceType: undefined,
+                              providerTrackName: undefined,
+                              artistName: undefined,
+                              playlistName: undefined,
+                            }))
+                          }
+                          className="shrink-0 rounded-md p-1 text-[var(--riff-text-faint)] transition hover:text-white"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ) : (
                       <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
-                        Choose a real linked track or playlist to use Spotify as an actual source.
+                        Choose a track or playlist to use Spotify as an actual source.
                       </div>
                     )}
                   </div>

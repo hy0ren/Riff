@@ -218,3 +218,32 @@ export async function fetchSpotifyTopTracks(accessToken: string): Promise<Spotif
     imageUrl: track.album?.images?.[0]?.url,
   }))
 }
+
+export async function fetchSpotifyPlaylistTracks(
+  playlistId: string,
+  accessToken: string,
+): Promise<SpotifyReferenceImport[]> {
+  const fields = 'items(track(id,uri,name,artists,album(images)))'
+  const data = await spotifyGet<{
+    items: Array<{
+      track: {
+        id: string
+        uri: string
+        name: string
+        album?: { images?: Array<{ url: string }> }
+        artists?: Array<{ name: string }>
+      } | null
+    }>
+  }>(`/playlists/${playlistId}/tracks?fields=${encodeURIComponent(fields)}&limit=50`, accessToken)
+
+  return data.items
+    .filter((item) => Boolean(item.track?.id))
+    .map((item) => ({
+      id: item.track!.id,
+      uri: item.track!.uri,
+      title: item.track!.name,
+      artistName:
+        item.track!.artists?.map((artist) => artist.name).join(', ') ?? 'Spotify Artist',
+      imageUrl: item.track!.album?.images?.[0]?.url,
+    }))
+}
