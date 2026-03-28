@@ -38,6 +38,22 @@ export interface GeminiBlueprintRefinementResult extends ProviderModelMetadata {
   rationale: string[]
 }
 
+export interface GeminiAudioAnalysisRequest {
+  sourceType: 'hum' | 'riff'
+  label?: string
+  notes?: string
+  audioDataUrl: string
+  durationSeconds?: number
+}
+
+export interface GeminiAudioAnalysisResult extends ProviderModelMetadata {
+  summary: string
+  bpm?: number
+  key?: string
+  mode?: 'Major' | 'Minor'
+  likelyChords?: string[]
+}
+
 export interface GeminiTrackSummaryRequest {
   projectId: string
   projectTitle?: string

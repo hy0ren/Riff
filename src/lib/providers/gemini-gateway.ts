@@ -1,5 +1,7 @@
 import type { Blueprint, LyricsSection, TrackStructureNode } from '@/domain/blueprint'
 import type {
+  GeminiAudioAnalysisRequest,
+  GeminiAudioAnalysisResult,
   GeminiBlueprintRefinementRequest,
   GeminiBlueprintRefinementResult,
   GeminiInterpretationRequest,
@@ -26,6 +28,22 @@ function dataUrlToInlineData(dataUrl: string): { mimeType: string; data: string 
 
   const [, mimeType, data] = match
   return { mimeType, data }
+}
+
+function buildFallbackAudioAnalysisResult(
+  request: GeminiAudioAnalysisRequest,
+  requestHash: string,
+): GeminiAudioAnalysisResult {
+  return {
+    provider: 'google-gemini',
+    model: 'gemini',
+    schemaVersion: 'spartan4.v1',
+    requestHash,
+    summary:
+      request.sourceType === 'hum'
+        ? 'Audio attached. Gemini fallback will preserve melodic contour and estimate defaults later in Studio.'
+        : 'Audio attached. Gemini fallback will preserve the riff feel and estimate defaults later in Studio.',
+  }
 }
 
 function toPromptSafeSourceInput(sourceInput: SourceInput) {
@@ -132,6 +150,27 @@ function buildInterpretationAudioParts(sourceInputs: SourceInput[]): Array<Recor
     })
 }
 
+function buildInterpretationDocumentParts(sourceInputs: SourceInput[]): Array<Record<string, unknown>> {
+  return sourceInputs
+    .filter((sourceInput): sourceInput is SourceInput & { rawAssetUrl?: string } => sourceInput.type === 'sheet_music')
+    .slice(0, 1)
+    .flatMap((sourceInput) => {
+      const inlineData = dataUrlToInlineData(sourceInput.rawAssetUrl ?? '')
+      if (!inlineData) {
+        return []
+      }
+
+      return [
+        {
+          text: `Sheet music source: ${sourceInput.label}. Inspect the notation directly when possible to infer key, BPM, harmonic movement, and section structure.`,
+        },
+        {
+          inlineData,
+        },
+      ]
+    })
+}
+
 function buildFallbackLyricSections(
   request: GeminiTrackSummaryRequest,
 ): LyricsSection[] | undefined {
@@ -168,10 +207,27 @@ function buildFallbackSectionGuides(
     return undefined
   }
 
-  return chordSections.map((section) => {
+  return chordSections.map((section, index) => {
     const matchingLyrics = lyricSections?.find(
       (candidate) => candidate.label.toLowerCase() === section.label.toLowerCase(),
     )
+    const chordDesc =
+      section.chords.length > 1
+        ? `${section.chords[0]} → ${section.chords[section.chords.length - 1]} progression`
+        : `${section.chords[0] ?? 'root chord'} foundation`
+
+    const focusTemplates = [
+      `Nail the ${section.label.toLowerCase()} entrance and lock the ${chordDesc}.`,
+      `Focus on phrase timing through the ${section.label.toLowerCase()} — feel the ${chordDesc}.`,
+      `Get the ${section.label.toLowerCase()} groove solid, especially the ${chordDesc}.`,
+      `Internalize the rhythm of the ${section.label.toLowerCase()} and the ${chordDesc}.`,
+    ]
+    const memoryCueTemplates = [
+      `Count yourself into the ${section.label.toLowerCase()} at the ${section.chords[0] ?? 'downbeat'}.`,
+      `Feel the energy shift as the ${section.label.toLowerCase()} drops in.`,
+      `Anchor on the ${section.chords[0] ?? 'root'} voicing to find your place in the ${section.label.toLowerCase()}.`,
+      `Picture the transition into ${section.label.toLowerCase()} — the ${chordDesc} is your landmark.`,
+    ]
 
     return {
       id: `guide-${section.id}`,
@@ -180,8 +236,8 @@ function buildFallbackSectionGuides(
       duration: section.duration,
       chords: section.chords,
       lyricCue: matchingLyrics?.lines.slice(0, 2),
-      focus: `Learn the ${section.label.toLowerCase()} entrance, chord movement, and phrase timing.`,
-      memoryCue: matchingLyrics?.lines[0],
+      focus: focusTemplates[index % focusTemplates.length],
+      memoryCue: matchingLyrics?.lines[0] ?? memoryCueTemplates[index % memoryCueTemplates.length],
     }
   })
 }
@@ -236,6 +292,7 @@ export async function interpretSourceSet(
     sourceWeightSummary: buildWeightedSourceSummary(request.sourceSet, request.sourceInputs),
   }
   const audioParts = buildInterpretationAudioParts(request.sourceInputs)
+  const documentParts = buildInterpretationDocumentParts(request.sourceInputs)
 
   try {
     const result = await callGeminiJson<{
@@ -245,11 +302,11 @@ export async function interpretSourceSet(
       conflicts: GeminiInterpretationResult['conflicts']
     }>({
       systemInstruction:
-        'You are the structured music interpretation layer for Riff. Return JSON only. Infer musical structure from the provided source set. Honor source influence and weight when resolving conflicts. If audio is attached, use it directly rather than guessing from labels alone. Be concise, musical, and deterministic.',
+        'You are the structured music interpretation layer for Riff. Return JSON only. Infer musical structure from the provided source set. Honor source influence and weight when resolving conflicts. If audio is attached, use it directly rather than guessing from labels alone. If sheet music is attached, inspect the notation to infer key, BPM, chord movement, and section structure. If a chord progression is provided, infer the likely key and organize it into verse, chorus, bridge, and final chorus sections. Honor any requested key change after the bridge. Be concise, musical, and deterministic.',
       prompt: `Interpret this source set into a structured blueprint draft.\n${toJsonPrompt(
         promptSafeRequest,
       )}`,
-      userParts: audioParts,
+      userParts: [...audioParts, ...documentParts],
     })
 
     return {
@@ -319,6 +376,56 @@ export async function refineBlueprint(
     summary: result.summary,
     proposedBlueprintChanges: result.proposedBlueprintChanges,
     rationale: result.rationale,
+  }
+}
+
+export async function analyzeAudioSource(
+  request: GeminiAudioAnalysisRequest,
+): Promise<GeminiAudioAnalysisResult> {
+  const requestHash = await hashJsonPayload({
+    ...request,
+    audioDataUrl: '[inline-audio-attached]',
+  })
+  const audioInlineData = dataUrlToInlineData(request.audioDataUrl)
+
+  if (!audioInlineData) {
+    return buildFallbackAudioAnalysisResult(request, requestHash)
+  }
+
+  try {
+    const result = await callGeminiJson<{
+      summary: string
+      bpm?: number
+      key?: string
+      mode?: 'Major' | 'Minor'
+      likelyChords?: string[]
+    }>({
+      systemInstruction:
+        'You are the audio intake analysis layer for Riff. Return JSON only. Listen to the attached musical idea and estimate the likely BPM, tonal center key, major/minor mode, and a concise repeating chord progression if one is inferable. Be conservative and musical. If the harmony is unclear, return an empty likelyChords array instead of inventing details.',
+      prompt: `Analyze this ${request.sourceType === 'hum' ? 'hummed melody' : 'riff or uploaded sample'} and estimate default musical values for project setup.\n${toJsonPrompt({
+        ...request,
+        audioDataUrl: '[inline-audio-attached]',
+      })}`,
+      userParts: [
+        {
+          text:
+            request.sourceType === 'hum'
+              ? 'Listen for pitch center, tempo, and any implied chord movement in the hummed phrase.'
+              : 'Listen for tempo, tonal center, and the most likely chord loop implied by this riff or sample.',
+        },
+        { inlineData: audioInlineData },
+      ],
+    })
+
+    return {
+      provider: 'google-gemini',
+      model: 'gemini',
+      schemaVersion: 'spartan4.v1',
+      requestHash,
+      ...result,
+    }
+  } catch {
+    return buildFallbackAudioAnalysisResult(request, requestHash)
   }
 }
 

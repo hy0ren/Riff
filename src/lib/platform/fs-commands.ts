@@ -45,15 +45,27 @@ export async function exportAssetToDisk(params: ExportParams): Promise<string> {
     return result
   } catch (e) {
     console.error('[Native] Export failed:', e)
-    
-    // Fallback logic for demo/web: Trigger a normal browser download link
+
+    let href = ''
+    if (params.base64Data) {
+      href = `data:${params.mimeType ?? 'application/octet-stream'};base64,${params.base64Data}`
+    } else {
+      const blob = new Blob([params.contents ?? ''], {
+        type: params.mimeType ?? 'text/plain',
+      })
+      href = URL.createObjectURL(blob)
+    }
+
     const link = document.createElement('a')
-    link.href = '#'
+    link.href = href
     link.download = params.filename
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
-    
-    throw new Error('Native export failed. Triggered fallback download.')
+    if (href.startsWith('blob:')) {
+      window.setTimeout(() => URL.revokeObjectURL(href), 0)
+    }
+
+    return params.filename
   }
 }

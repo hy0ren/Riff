@@ -3,13 +3,21 @@ import type { SourceInput, SourceSelectionType } from '@/domain/source-input'
 import { createSourceSetFromInputs } from '@/lib/studio-pipeline/source-assembly'
 import { createStudioId, nowIso } from '@/lib/studio-pipeline/ids'
 import { normalizeProject } from '@/features/projects/lib/project-normalizers'
+import { buildChordSectionSuggestion, inferKeyFromChordText } from '@/lib/music-analysis'
+import type { MusicalMode } from '@/domain/blueprint'
 
 export interface CreateSourceSelectionDraft {
   type: SourceSelectionType
   label?: string
   description?: string
   text?: string
+  lyricSections?: {
+    verse?: string
+    chorus?: string
+    bridge?: string
+  }
   audioDataUrl?: string
+  assetDataUrl?: string
   durationSeconds?: number
   fileName?: string
   fileFormat?: 'wav' | 'mp3' | 'webm' | 'ogg' | 'pdf' | 'midi' | 'musicxml' | 'txt'
@@ -18,6 +26,34 @@ export interface CreateSourceSelectionDraft {
   providerTrackName?: string
   playlistName?: string
   spotifyReferenceType?: 'track' | 'playlist'
+  sourceProjectId?: string
+  sourceVersionId?: string
+  detectedKey?: string
+  detectedMode?: MusicalMode
+  detectedBpm?: number
+  detectedChordProgression?: string[]
+  analysisSummary?: string
+  keyChangeAfterBridge?: boolean
+  postBridgeKey?: string
+}
+
+function buildStructuredLyricsText(selection: CreateSourceSelectionDraft): string {
+  const sections = [
+    selection.lyricSections?.verse
+      ? `Verse:\n${selection.lyricSections.verse.trim()}`
+      : undefined,
+    selection.lyricSections?.chorus
+      ? `Chorus:\n${selection.lyricSections.chorus.trim()}`
+      : undefined,
+    selection.lyricSections?.bridge
+      ? `Bridge:\n${selection.lyricSections.bridge.trim()}`
+      : undefined,
+    selection.text?.trim()
+      ? `Notes:\n${selection.text.trim()}`
+      : undefined,
+  ].filter((value): value is string => Boolean(value))
+
+  return sections.join('\n\n')
 }
 
 function titleFromSelection(selectedSources: CreateSourceSelectionDraft[]): string {
@@ -73,6 +109,10 @@ function buildSourceInput(
               durationSeconds: selection.durationSeconds,
               fileName: selection.fileName,
               fileFormat: selection.fileFormat,
+              detectedKey: selection.detectedKey,
+              detectedMode: selection.detectedMode,
+              detectedBpm: selection.detectedBpm,
+              detectedChordProgression: selection.detectedChordProgression,
             }
           : undefined,
       }
@@ -97,10 +137,15 @@ function buildSourceInput(
               durationSeconds: selection.durationSeconds,
               fileName: selection.fileName,
               fileFormat: selection.fileFormat,
+              detectedKey: selection.detectedKey,
+              detectedMode: selection.detectedMode,
+              detectedBpm: selection.detectedBpm,
+              detectedChordProgression: selection.detectedChordProgression,
             }
           : undefined,
       }
-    case 'lyrics':
+    case 'lyrics': {
+      const structuredLyrics = buildStructuredLyricsText(selection)
       return {
         id: createStudioId('src'),
         projectId,
@@ -114,16 +159,24 @@ function buildSourceInput(
         isReference: false,
         interpretationStatus: 'attached',
         text:
-          selection.text ??
-          'Midnight hallway / city glow / hold the note and let it go',
+          structuredLyrics ||
+          'Verse:\nMidnight hallway, city glow\nHold the note and let it go\n\nChorus:\nStay with me through neon light\nCarry the sound into the night',
+        normalized: {
+          textLength: structuredLyrics.length || selection.text?.length,
+        },
       }
-    case 'chords':
+    }
+    case 'chords': {
+      const chordInference = inferKeyFromChordText(selection.text ?? '')
+      const chordSections = buildChordSectionSuggestion(selection.text ?? '', {
+        keyChangeAfterBridge: selection.keyChangeAfterBridge,
+      })
       return {
         id: createStudioId('src'),
         projectId,
         type: 'chord_progression',
         label: 'Chord Progression',
-        description: 'Harmonic spine for the arrangement.',
+        description: selection.description ?? 'Harmonic spine for the arrangement.',
         iconName: 'Type',
         createdAt,
         role: 'harmonic',
@@ -131,22 +184,43 @@ function buildSourceInput(
         isReference: false,
         interpretationStatus: 'attached',
         text: selection.text ?? 'Fm - Db - Ab - Eb',
+        normalized: {
+          textLength: selection.text?.length,
+          detectedKey: selection.detectedKey ?? chordInference?.key,
+          detectedMode: selection.detectedMode ?? chordInference?.mode,
+          keyChangeAfterBridge: selection.keyChangeAfterBridge,
+          postBridgeKey: chordSections?.postBridgeKey ?? selection.postBridgeKey,
+        },
       }
+    }
     case 'sheet':
       return {
         id: createStudioId('src'),
         projectId,
         type: 'sheet_music',
-        label: 'Sheet Music Upload',
-        description: 'Notation or lead sheet reference.',
+        label: selection.label ?? 'Sheet Music Upload',
+        description: selection.description ?? 'Notation or lead sheet reference.',
         iconName: 'FileMusic',
         createdAt,
         role: 'structural',
         provenance: 'uploaded',
         isReference: false,
         interpretationStatus: 'pending',
-        fileName: 'lead-sheet.pdf',
-        fileFormat: 'pdf',
+        rawAssetUrl: selection.assetDataUrl,
+        fileName: selection.fileName ?? 'lead-sheet.pdf',
+        fileFormat: selection.fileFormat === 'midi' || selection.fileFormat === 'musicxml' || selection.fileFormat === 'pdf'
+          ? selection.fileFormat
+          : 'pdf',
+        normalized: {
+          fileName: selection.fileName ?? 'lead-sheet.pdf',
+          fileFormat:
+            selection.fileFormat === 'midi' || selection.fileFormat === 'musicxml' || selection.fileFormat === 'pdf'
+              ? selection.fileFormat
+              : 'pdf',
+          detectedKey: selection.detectedKey,
+          detectedMode: selection.detectedMode,
+          detectedBpm: selection.detectedBpm,
+        },
       }
     case 'spotify':
       return selection.spotifyReferenceType === 'playlist'
@@ -195,15 +269,27 @@ function buildSourceInput(
         id: createStudioId('src'),
         projectId,
         type: 'remix_source',
-        label: 'Remix Source',
-        description: 'Rework an existing project into a new version.',
+        label: selection.label ?? 'Remix Source',
+        description: selection.description ?? 'Rework an existing project into a new version.',
         iconName: 'Share',
         createdAt,
         role: 'remix',
         provenance: 'project',
         isReference: false,
         interpretationStatus: 'attached',
+        durationSeconds: selection.durationSeconds,
+        audioUrl: selection.audioDataUrl,
+        rawAssetUrl: selection.audioDataUrl,
+        sourceProjectId: selection.sourceProjectId,
+        sourceVersionId: selection.sourceVersionId,
         inheritsEditableAudio: true,
+        normalized: selection.audioDataUrl
+          ? {
+              durationSeconds: selection.durationSeconds,
+              fileName: selection.fileName,
+              fileFormat: selection.fileFormat,
+            }
+          : undefined,
       }
   }
 }

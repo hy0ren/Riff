@@ -19,6 +19,7 @@ import { getPrimaryProjectId } from '@/features/projects/lib/project-selectors'
 import { useProjectContextStore } from '@/features/projects/store/use-project-context-store'
 import { useProjectStore } from '@/features/projects/store/use-project-store'
 import { StaggerChildren } from '@/components/shared/stagger-children'
+import herobackground from '@/assets/herobackground.png'
 
 export function HomePage() {
   const navigate = useNavigate()
@@ -29,7 +30,15 @@ export function HomePage() {
   return (
     <PageFrame className="pb-12">
       {/* Hero Section — The Command Center Entrance */}
-      <section className="relative overflow-hidden rounded-[24px] bg-[var(--riff-surface-low)] p-10 mb-12">
+      <section 
+        className="relative overflow-hidden rounded-[24px] bg-[var(--riff-surface-low)] p-10 mb-12"
+        style={{
+          backgroundImage: `linear-gradient(to right, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.4) 60%, rgba(0,0,0,0.2) 100%), url(${herobackground})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        }}
+      >
         <div className="relative z-10 max-w-2xl">
           <div className="mb-4 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.15em] text-[var(--riff-accent-light)]">
             <Sparkles className="h-4 w-4" />

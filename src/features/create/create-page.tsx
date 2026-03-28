@@ -20,15 +20,18 @@ import { PageFrame } from '@/components/layout/page-frame'
 import { SourceCard } from '@/components/shared/source-card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import type { SourceSelectionType } from '@/domain/source-input'
 import { projectRoutes } from '@/features/projects/lib/project-routes'
 import { useProjectStore } from '@/features/projects/store/use-project-store'
 import { useStudioStore } from '@/features/studio/store/use-studio-store'
 import { cn } from '@/lib/utils'
+import { getProjectVersion } from '@/features/projects/lib/project-selectors'
 import {
   beginSpotifyAuthorization,
 } from '@/lib/providers/spotify-gateway'
+import { analyzeAudioSource } from '@/lib/providers/gemini-gateway'
 import {
   blobToDataUrl,
   fileToDataUrl,
@@ -39,6 +42,11 @@ import {
   createProjectFromSelection,
   type CreateSourceSelectionDraft,
 } from './lib/create-project-from-selection'
+import {
+  analyzeSheetMusicFile,
+  buildChordSectionSuggestion,
+  inferKeyFromChordText,
+} from '@/lib/music-analysis'
 import {
   getSpotifyConnectionStatus,
   useIntegrationStore,
@@ -118,7 +126,12 @@ function defaultDraftForType(type: SourceSelectionType): CreateSourceSelectionDr
         type,
         label: 'Lyric Draft',
         description: 'Words and lyrical direction for the song.',
-        text: 'Midnight hallway / city glow / hold the note and let it go',
+        lyricSections: {
+          verse: 'Midnight hallway / city glow / hold the note and let it go',
+          chorus: 'Stay with me through neon light / carry the sound into the night',
+          bridge: '',
+        },
+        text: '',
       }
     case 'chords':
       return {
@@ -126,6 +139,7 @@ function defaultDraftForType(type: SourceSelectionType): CreateSourceSelectionDr
         label: 'Chord Progression',
         description: 'Harmonic spine for the arrangement.',
         text: 'Fm - Db - Ab - Eb',
+        keyChangeAfterBridge: false,
       }
     case 'sheet':
       return {
@@ -169,7 +183,9 @@ export function CreatePage() {
   const [isCreating, setIsCreating] = useState(false)
   const [activeRecordingType, setActiveRecordingType] = useState<AudioSelectionType | null>(null)
   const [recordingError, setRecordingError] = useState<string | null>(null)
+  const [audioAnalysisByType, setAudioAnalysisByType] = useState<Partial<Record<AudioSelectionType, 'idle' | 'analyzing' | 'ready' | 'failed'>>>({})
   const upsertProject = useProjectStore((state) => state.upsertProject)
+  const projects = useProjectStore((state) => state.projects)
   const spotify = useIntegrationStore((state) => state.spotify)
   const setSpotifyAuth = useIntegrationStore((state) => state.setSpotifyAuth)
   const recorderRef = useRef<MediaRecorder | null>(null)
@@ -235,6 +251,29 @@ export function CreatePage() {
           ? 'Recorded vocal melody for Gemini analysis.'
           : 'Uploaded riff for Gemini rhythm and tonal analysis.',
     }))
+
+    setAudioAnalysisByType((current) => ({ ...current, [type]: 'analyzing' }))
+    try {
+      const analysis = await analyzeAudioSource({
+        sourceType: type,
+        label: file.name,
+        notes: type === 'hum' ? 'Prefer melodic contour and implied harmony.' : 'Prefer groove, riff harmony, and tempo.',
+        audioDataUrl,
+        durationSeconds,
+      })
+
+      setDraft(type, (draft) => ({
+        ...draft,
+        detectedBpm: analysis.bpm,
+        detectedKey: analysis.key,
+        detectedMode: analysis.mode,
+        detectedChordProgression: analysis.likelyChords,
+        analysisSummary: analysis.summary,
+      }))
+      setAudioAnalysisByType((current) => ({ ...current, [type]: 'ready' }))
+    } catch {
+      setAudioAnalysisByType((current) => ({ ...current, [type]: 'failed' }))
+    }
   }
 
   const handleStartRecording = async (type: AudioSelectionType) => {
@@ -291,6 +330,29 @@ export function CreatePage() {
                 ? 'Live-recorded melodic phrase for Gemini analysis.'
                 : 'Live-recorded riff for Gemini rhythm and tonal analysis.',
           }))
+
+          setAudioAnalysisByType((current) => ({ ...current, [type]: 'analyzing' }))
+          try {
+            const analysis = await analyzeAudioSource({
+              sourceType: type,
+              label: recordedFileName,
+              notes: type === 'hum' ? 'Prefer melodic contour and implied harmony.' : 'Prefer groove, riff harmony, and tempo.',
+              audioDataUrl,
+              durationSeconds,
+            })
+
+            setDraft(type, (draft) => ({
+              ...draft,
+              detectedBpm: analysis.bpm,
+              detectedKey: analysis.key,
+              detectedMode: analysis.mode,
+              detectedChordProgression: analysis.likelyChords,
+              analysisSummary: analysis.summary,
+            }))
+            setAudioAnalysisByType((current) => ({ ...current, [type]: 'ready' }))
+          } catch {
+            setAudioAnalysisByType((current) => ({ ...current, [type]: 'failed' }))
+          }
         } catch (error) {
           setRecordingError(
             error instanceof Error ? error.message : 'Failed to process recorded audio.',
@@ -324,10 +386,16 @@ export function CreatePage() {
   const hasSelection = selectedTypes.length > 0
   const spotifyConnectionStatus = getSpotifyConnectionStatus(spotify.auth)
   const spotifyConnected = spotifyConnectionStatus === 'connected'
+  const remixableProjects = projects.filter((project) => Boolean(getProjectVersion(project)?.audioUrl))
   const requiresAudioInput = selectedTypes.some((type) => isAudioSelectionType(type))
   const missingAudioInput = selectedTypes.some(
     (type) => isAudioSelectionType(type) && !sourceDrafts[type]?.audioDataUrl,
   )
+  const missingSheetInput =
+    selectedTypes.includes('sheet') && !sourceDrafts.sheet?.assetDataUrl
+  const missingRemixSelection =
+    selectedTypes.includes('remix') &&
+    (!sourceDrafts.remix?.sourceProjectId || !sourceDrafts.remix?.sourceVersionId)
   const spotifyRequiredButUnlinked =
     selectedTypes.includes('spotify') &&
     (!spotifyConnected || (!spotify.topTracks.length && !spotify.playlists.length))
@@ -336,11 +404,18 @@ export function CreatePage() {
     !isCreating &&
     !activeRecordingType &&
     (!requiresAudioInput || !missingAudioInput) &&
+    !missingSheetInput &&
+    !missingRemixSelection &&
     !spotifyRequiredButUnlinked
 
   const selectedSources = selectedTypes.map(
     (type) => sourceDrafts[type] ?? defaultDraftForType(type),
   )
+  const chordDraft = sourceDrafts.chords ?? defaultDraftForType('chords')
+  const chordInference = inferKeyFromChordText(chordDraft.text ?? '')
+  const chordSectionSuggestion = buildChordSectionSuggestion(chordDraft.text ?? '', {
+    keyChangeAfterBridge: chordDraft.keyChangeAfterBridge,
+  })
 
   const handleContinue = async () => {
     if (!canContinue) {
@@ -364,6 +439,53 @@ export function CreatePage() {
     const authStart = await beginSpotifyAuthorization()
     setSpotifyAuth(authStart.pendingAuth)
     window.location.assign(authStart.authorizeUrl)
+  }
+
+  const handleSheetUpload = async (file: File) => {
+    const assetDataUrl = await fileToDataUrl(file)
+    const analysis = await analyzeSheetMusicFile(file)
+    const extension = file.name.split('.').pop()?.toLowerCase()
+    const fileFormat =
+      extension === 'mid' || extension === 'midi'
+        ? 'midi'
+        : extension === 'musicxml' || extension === 'xml' || extension === 'mxl'
+          ? 'musicxml'
+          : 'pdf'
+
+    setDraft('sheet', (draft) => ({
+      ...draft,
+      assetDataUrl,
+      fileName: file.name,
+      fileFormat,
+      label: draft.label ?? 'Sheet Music Upload',
+      description:
+        fileFormat === 'pdf'
+          ? 'Uploaded notation PDF for structural interpretation.'
+          : 'Uploaded notation file for harmonic and structural interpretation.',
+      detectedKey: analysis.key,
+      detectedMode: analysis.mode,
+      detectedBpm: analysis.bpm,
+    }))
+  }
+
+  const handleSelectRemixProject = (projectId: string) => {
+    const sourceProject = projects.find((project) => project.id === projectId)
+    const sourceVersion = sourceProject ? getProjectVersion(sourceProject) : undefined
+    if (!sourceProject || !sourceVersion) {
+      return
+    }
+
+    setDraft('remix', (draft) => ({
+      ...draft,
+      label: `${sourceProject.title} Remix`,
+      description: `Remix the generated version "${sourceVersion.name}" from your library.`,
+      sourceProjectId: sourceProject.id,
+      sourceVersionId: sourceVersion.id,
+      audioDataUrl: sourceVersion.audioUrl,
+      durationSeconds: sourceVersion.duration,
+      fileName: `${sourceProject.title}-${sourceVersion.name}.wav`,
+      fileFormat: 'wav',
+    }))
   }
 
   return (
@@ -403,6 +525,7 @@ export function CreatePage() {
                 const option = SOURCE_OPTIONS.find((candidate) => candidate.type === type)
                 const draft = sourceDrafts[type] ?? defaultDraftForType(type)
                 const isRecording = activeRecordingType === type
+                const audioAnalysisState = audioAnalysisByType[type] ?? 'idle'
 
                 return (
                   <section
@@ -423,7 +546,11 @@ export function CreatePage() {
                         </p>
                       </div>
                       <div className="rounded-full border border-[var(--riff-surface-high)] bg-[var(--riff-surface-low)] px-3 py-1 text-[11px] font-semibold text-[var(--riff-text-secondary)]">
-                        {draft.audioDataUrl ? 'Ready' : 'Audio Required'}
+                        {audioAnalysisState === 'analyzing'
+                          ? 'Analyzing Audio'
+                          : draft.audioDataUrl
+                            ? 'Ready'
+                            : 'Audio Required'}
                       </div>
                     </div>
 
@@ -518,9 +645,31 @@ export function CreatePage() {
                             </p>
                           </div>
                           <span className="rounded-full bg-emerald-500/15 px-2.5 py-1 text-[11px] font-semibold text-emerald-300">
-                            Ready for Gemini
+                            {audioAnalysisState === 'analyzing' ? 'Gemini listening…' : 'Ready for Gemini'}
                           </span>
                         </div>
+                        {(draft.detectedKey || draft.detectedBpm || draft.detectedChordProgression?.length) && (
+                          <div className="mb-3 flex flex-wrap gap-2">
+                            {draft.detectedKey ? (
+                              <span className="rounded-full bg-[var(--riff-accent)]/15 px-3 py-1 text-xs font-semibold text-[var(--riff-accent-light)]">
+                                Detected key: {draft.detectedKey} {draft.detectedMode}
+                              </span>
+                            ) : null}
+                            {draft.detectedBpm ? (
+                              <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-300">
+                                Detected BPM: {draft.detectedBpm}
+                              </span>
+                            ) : null}
+                            {draft.detectedChordProgression?.length ? (
+                              <span className="rounded-full bg-amber-500/15 px-3 py-1 text-xs font-semibold text-amber-200">
+                                Chords: {draft.detectedChordProgression.join(' - ')}
+                              </span>
+                            ) : null}
+                          </div>
+                        )}
+                        {draft.analysisSummary ? (
+                          <p className="mb-3 text-xs text-[var(--riff-text-muted)]">{draft.analysisSummary}</p>
+                        ) : null}
                         <audio controls src={draft.audioDataUrl} className="w-full" />
                       </div>
                     ) : (
@@ -537,19 +686,60 @@ export function CreatePage() {
               <section className="rounded-2xl border border-[var(--riff-surface-high)] bg-[var(--riff-surface-highest)]/70 p-5">
                 <h3 className="font-display text-xl text-[var(--riff-text-primary)]">Lyrics</h3>
                 <p className="mt-1 text-sm text-[var(--riff-text-muted)]">
-                  Add lyrical direction now or let the audio inference establish the musical frame first.
+                  Shape the lyric intent by section so Gemini knows what belongs in the verse, chorus, and bridge.
                 </p>
-                <Textarea
-                  value={sourceDrafts.lyrics?.text ?? defaultDraftForType('lyrics').text ?? ''}
-                  rows={6}
-                  onChange={(event) =>
-                    setDraft('lyrics', (draft) => ({
-                      ...draft,
-                      text: event.target.value,
-                    }))
-                  }
-                  className="mt-4 border-[var(--riff-surface-high)] bg-[var(--riff-surface)]"
-                />
+                <div className="mt-4 grid gap-4">
+                  {([
+                    ['verse', 'Verse', 'Use this for the story setup and scene-setting lines.'],
+                    ['chorus', 'Chorus', 'Use this for the hook, title line, or emotional payoff.'],
+                    ['bridge', 'Bridge', 'Use this for the contrast or emotional turn before the final chorus.'],
+                  ] as Array<['verse' | 'chorus' | 'bridge', string, string]>).map(([sectionKey, label, helper]) => (
+                    <div key={sectionKey} className="space-y-2">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--riff-text-muted)]">
+                          {label}
+                        </p>
+                        <p className="mt-1 text-xs text-[var(--riff-text-faint)]">{helper}</p>
+                      </div>
+                      <Textarea
+                        value={sourceDrafts.lyrics?.lyricSections?.[sectionKey] ?? defaultDraftForType('lyrics').lyricSections?.[sectionKey] ?? ''}
+                        rows={4}
+                        onChange={(event) =>
+                          setDraft('lyrics', (draft) => ({
+                            ...draft,
+                            lyricSections: {
+                              ...draft.lyricSections,
+                              [sectionKey]: event.target.value,
+                            },
+                          }))
+                        }
+                        className="border-[var(--riff-surface-high)] bg-[var(--riff-surface)]"
+                      />
+                    </div>
+                  ))}
+
+                  <div className="space-y-2">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--riff-text-muted)]">
+                        Additional Notes
+                      </p>
+                      <p className="mt-1 text-xs text-[var(--riff-text-faint)]">
+                        Add extra lyric ideas, ad-libs, or delivery notes that do not belong to one section.
+                      </p>
+                    </div>
+                    <Textarea
+                      value={sourceDrafts.lyrics?.text ?? defaultDraftForType('lyrics').text ?? ''}
+                      rows={3}
+                      onChange={(event) =>
+                        setDraft('lyrics', (draft) => ({
+                          ...draft,
+                          text: event.target.value,
+                        }))
+                      }
+                      className="border-[var(--riff-surface-high)] bg-[var(--riff-surface)]"
+                    />
+                  </div>
+                </div>
               </section>
             )}
 
@@ -557,19 +747,214 @@ export function CreatePage() {
               <section className="rounded-2xl border border-[var(--riff-surface-high)] bg-[var(--riff-surface-highest)]/70 p-5">
                 <h3 className="font-display text-xl text-[var(--riff-text-primary)]">Chord Sequence</h3>
                 <p className="mt-1 text-sm text-[var(--riff-text-muted)]">
-                  Use a simple progression and Gemini will blend it with the melodic or rhythmic source.
+                  Use a simple progression and Riff will infer the likely key, then map it into verse, chorus, bridge, and a lift-ready final chorus.
                 </p>
                 <Textarea
                   value={sourceDrafts.chords?.text ?? defaultDraftForType('chords').text ?? ''}
                   rows={4}
                   onChange={(event) =>
-                    setDraft('chords', (draft) => ({
-                      ...draft,
-                      text: event.target.value,
-                    }))
+                    setDraft('chords', (draft) => {
+                      const nextText = event.target.value
+                      const nextInference = inferKeyFromChordText(nextText)
+                      const nextSuggestion = buildChordSectionSuggestion(nextText, {
+                        keyChangeAfterBridge: draft.keyChangeAfterBridge,
+                      })
+
+                      return {
+                        ...draft,
+                        text: nextText,
+                        detectedKey: nextInference?.key,
+                        detectedMode: nextInference?.mode,
+                        postBridgeKey: nextSuggestion?.postBridgeKey,
+                      }
+                    })
                   }
                   className="mt-4 border-[var(--riff-surface-high)] bg-[var(--riff-surface)]"
                 />
+                <div className="mt-4 flex items-center justify-between rounded-2xl border border-[var(--riff-surface-high)] bg-[var(--riff-surface-low)] px-4 py-3">
+                  <div>
+                    <p className="text-sm font-semibold text-[var(--riff-text-primary)]">
+                      Key change after bridge
+                    </p>
+                    <p className="text-xs text-[var(--riff-text-muted)]">
+                      Lift the final chorus into a higher key after the bridge.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={Boolean(chordDraft.keyChangeAfterBridge)}
+                    onCheckedChange={(checked) =>
+                      setDraft('chords', (draft) => ({
+                        ...draft,
+                        keyChangeAfterBridge: checked,
+                        postBridgeKey: checked
+                          ? buildChordSectionSuggestion(draft.text ?? '', {
+                              keyChangeAfterBridge: true,
+                            })?.postBridgeKey
+                          : undefined,
+                      }))
+                    }
+                  />
+                </div>
+
+                {(chordInference?.key || chordSectionSuggestion) && (
+                  <div className="mt-4 rounded-2xl border border-[var(--riff-surface-high)] bg-[var(--riff-surface-low)] p-4">
+                    <div className="flex flex-wrap gap-2">
+                      {chordInference?.key ? (
+                        <span className="rounded-full bg-[var(--riff-accent)]/15 px-3 py-1 text-xs font-semibold text-[var(--riff-accent-light)]">
+                          Likely key: {chordInference.key} {chordInference.mode}
+                        </span>
+                      ) : null}
+                      {chordSectionSuggestion?.postBridgeKey ? (
+                        <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-300">
+                          Final chorus lift: {chordSectionSuggestion.postBridgeKey}
+                        </span>
+                      ) : null}
+                    </div>
+
+                    {chordSectionSuggestion ? (
+                      <div className="mt-4 grid gap-3 md:grid-cols-2">
+                        {([
+                          ['Verse', chordSectionSuggestion.verse],
+                          ['Chorus', chordSectionSuggestion.chorus],
+                          ['Bridge', chordSectionSuggestion.bridge],
+                          [
+                            chordSectionSuggestion.keyChangeAfterBridge
+                              ? 'Final Chorus (Key Change)'
+                              : 'Final Chorus',
+                            chordSectionSuggestion.finalChorus,
+                          ],
+                        ] as Array<[string, string[]]>).map(([label, chords]) => (
+                          <div
+                            key={label}
+                            className="rounded-xl border border-[var(--riff-surface-high)] bg-[var(--riff-surface)] px-3 py-2"
+                          >
+                            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--riff-text-muted)]">
+                              {label}
+                            </p>
+                            <p className="mt-1 text-sm font-medium text-[var(--riff-text-primary)]">
+                              {chords.join(' - ')}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+              </section>
+            )}
+
+            {selectedTypes.includes('sheet') && (
+              <section className="rounded-2xl border border-[var(--riff-surface-high)] bg-[var(--riff-surface-highest)]/70 p-5">
+                <h3 className="font-display text-xl text-[var(--riff-text-primary)]">Sheet Music</h3>
+                <p className="mt-1 text-sm text-[var(--riff-text-muted)]">
+                  Upload a lead sheet, notation PDF, or MIDI/MusicXML file so Gemini can use the written structure as a first-class source.
+                </p>
+
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <label htmlFor="upload-sheet">
+                    <input
+                      id="upload-sheet"
+                      type="file"
+                      accept=".pdf,.mid,.midi,.musicxml,.xml,.mxl,application/pdf,audio/midi,application/xml,text/xml"
+                      className="hidden"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0]
+                        if (!file) {
+                          return
+                        }
+
+                        void handleSheetUpload(file)
+                        event.currentTarget.value = ''
+                      }}
+                    />
+                    <span className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-[var(--riff-surface-high)] bg-[var(--riff-surface-low)] px-4 py-2 text-sm font-semibold text-[var(--riff-text-primary)] transition hover:border-[var(--riff-accent)] hover:text-[var(--riff-accent-light)]">
+                      <Upload className="h-4 w-4" />
+                      Upload Sheet
+                    </span>
+                  </label>
+                </div>
+
+                {sourceDrafts.sheet?.assetDataUrl ? (
+                  <div className="mt-4 rounded-2xl border border-[var(--riff-surface-high)] bg-[var(--riff-surface-low)] p-4">
+                    <p className="font-semibold text-[var(--riff-text-primary)]">
+                      {sourceDrafts.sheet.fileName}
+                    </p>
+                    <p className="mt-1 text-sm text-[var(--riff-text-muted)]">
+                      Format: {sourceDrafts.sheet.fileFormat ?? 'pdf'}
+                    </p>
+                    {sourceDrafts.sheet.detectedKey || sourceDrafts.sheet.detectedBpm ? (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {sourceDrafts.sheet.detectedKey ? (
+                          <span className="rounded-full bg-[var(--riff-accent)]/15 px-3 py-1 text-xs font-semibold text-[var(--riff-accent-light)]">
+                            Detected key: {sourceDrafts.sheet.detectedKey} {sourceDrafts.sheet.detectedMode}
+                          </span>
+                        ) : null}
+                        {sourceDrafts.sheet.detectedBpm ? (
+                          <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-300">
+                            Detected BPM: {sourceDrafts.sheet.detectedBpm}
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div className="mt-4 rounded-2xl border border-dashed border-[var(--riff-surface-high)] bg-[var(--riff-surface-low)] px-4 py-5 text-sm text-[var(--riff-text-muted)]">
+                    Upload a notation file before continuing so the Studio can derive structure and chord movement from it.
+                  </div>
+                )}
+              </section>
+            )}
+
+            {selectedTypes.includes('remix') && (
+              <section className="rounded-2xl border border-[var(--riff-surface-high)] bg-[var(--riff-surface-highest)]/70 p-5">
+                <h3 className="font-display text-xl text-[var(--riff-text-primary)]">Remix Source</h3>
+                <p className="mt-1 text-sm text-[var(--riff-text-muted)]">
+                  Pick one of your generated tracks to use as the source material for the new remix project.
+                </p>
+
+                {remixableProjects.length ? (
+                  <div className="mt-4 grid gap-3">
+                    {remixableProjects.map((project) => {
+                      const version = getProjectVersion(project)
+                      if (!version) {
+                        return null
+                      }
+
+                      const isSelected = sourceDrafts.remix?.sourceProjectId === project.id
+
+                      return (
+                        <button
+                          key={project.id}
+                          type="button"
+                          onClick={() => handleSelectRemixProject(project.id)}
+                          className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left transition ${
+                            isSelected
+                              ? 'border-[var(--riff-accent)] bg-[var(--riff-accent)]/10'
+                              : 'border-[var(--riff-surface-high)] bg-[var(--riff-surface-low)]'
+                          }`}
+                        >
+                          <div>
+                            <p className="text-sm font-semibold text-[var(--riff-text-primary)]">
+                              {project.title}
+                            </p>
+                            <p className="text-xs text-[var(--riff-text-muted)]">
+                              {version.name} • {formatDuration(version.duration)}
+                            </p>
+                          </div>
+                          {isSelected ? (
+                            <span className="text-[11px] font-semibold text-[var(--riff-accent-light)]">
+                              Selected
+                            </span>
+                          ) : null}
+                        </button>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div className="mt-4 rounded-2xl border border-dashed border-[var(--riff-surface-high)] bg-[var(--riff-surface-low)] px-4 py-5 text-sm text-[var(--riff-text-muted)]">
+                    No generated tracks with audio are available yet. Create a song first, then come back here to remix it.
+                  </div>
+                )}
               </section>
             )}
 
@@ -738,12 +1123,40 @@ export function CreatePage() {
                     <p className="text-xs text-[var(--riff-text-muted)]">
                       {isAudioSelectionType(source.type)
                         ? source.audioDataUrl
-                          ? `${formatDuration(source.durationSeconds)} ready for analysis`
+                          ? [
+                              `${formatDuration(source.durationSeconds)} ready for analysis`,
+                              source.detectedKey
+                                ? `${source.detectedKey}${source.detectedMode ? ` ${source.detectedMode}` : ''}`
+                                : undefined,
+                              source.detectedBpm ? `${source.detectedBpm} BPM` : undefined,
+                            ]
+                              .filter(Boolean)
+                              .join(' • ')
                           : 'waiting for audio'
+                        : source.type === 'sheet'
+                          ? source.assetDataUrl
+                            ? source.detectedKey || source.detectedBpm
+                              ? `${source.detectedKey ? `${source.detectedKey}${source.detectedMode ? ` ${source.detectedMode}` : ''}` : 'key pending'}${source.detectedBpm ? ` • ${source.detectedBpm} BPM` : ''}`
+                              : 'notation file attached'
+                            : 'waiting for upload'
+                        : source.type === 'remix'
+                          ? source.sourceProjectId
+                            ? 'remix source selected'
+                            : 'waiting for source track'
                         : source.type === 'spotify'
                           ? source.spotifyUri
                             ? 'linked Spotify reference'
                             : 'waiting for Spotify selection'
+                        : source.type === 'lyrics'
+                          ? [
+                              source.lyricSections?.verse ? 'verse' : undefined,
+                              source.lyricSections?.chorus ? 'chorus' : undefined,
+                              source.lyricSections?.bridge ? 'bridge' : undefined,
+                            ].filter(Boolean).join(' / ') || source.text
+                            ? 'sectioned lyrics ready'
+                            : 'waiting for lyrics'
+                        : source.type === 'chords' && chordSectionSuggestion
+                          ? `${chordInference?.key ? `${chordInference.key} ${chordInference.mode} • ` : ''}verse / chorus / bridge ready`
                         : source.text
                           ? 'text attached'
                           : 'metadata source'}
@@ -770,6 +1183,18 @@ export function CreatePage() {
               <div className="mt-5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
                 Hum and riff sources need an actual recording or uploaded file before Studio can
                 infer the blueprint.
+              </div>
+            )}
+
+            {missingSheetInput && (
+              <div className="mt-5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
+                Sheet Music is selected, but no notation file is attached yet.
+              </div>
+            )}
+
+            {missingRemixSelection && (
+              <div className="mt-5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
+                Remix is selected, but no existing track has been chosen yet.
               </div>
             )}
 
@@ -833,6 +1258,10 @@ export function CreatePage() {
               <p className="text-[10px] font-medium text-[var(--riff-text-muted)]">
                 {missingAudioInput
                   ? 'Attach audio first'
+                  : missingSheetInput
+                    ? 'Upload sheet music'
+                    : missingRemixSelection
+                      ? 'Choose a remix source'
                   : spotifyRequiredButUnlinked
                     ? 'Choose a Spotify reference'
                     : 'Ready to Assemble?'}

@@ -1,3 +1,5 @@
+import type { MusicalMode } from './blueprint'
+
 export type SourceSelectionType =
   | 'hum'
   | 'riff'
@@ -37,6 +39,12 @@ export interface SourceInputNormalizedMetadata {
   providerName?: string
   providerTitle?: string
   providerArtist?: string
+  detectedKey?: string
+  detectedMode?: MusicalMode
+  detectedBpm?: number
+  detectedChordProgression?: string[]
+  keyChangeAfterBridge?: boolean
+  postBridgeKey?: string
 }
 
 interface SourceInputBase {

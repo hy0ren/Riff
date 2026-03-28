@@ -87,7 +87,10 @@ export async function exchangeSpotifyCode(params: {
   })
 
   if (!response.ok) {
-    throw new Error(`Spotify token exchange failed: ${response.status} ${response.statusText}`)
+    const errorText = await response.text().catch(() => '')
+    throw new Error(
+      `Spotify token exchange failed: ${response.status} ${response.statusText}${errorText ? ` — ${errorText}` : ''}`,
+    )
   }
 
   const data = (await response.json()) as {
@@ -120,7 +123,10 @@ export async function refreshSpotifyToken(refreshToken: string): Promise<Spotify
   })
 
   if (!response.ok) {
-    throw new Error(`Spotify token refresh failed: ${response.status} ${response.statusText}`)
+    const errorText = await response.text().catch(() => '')
+    throw new Error(
+      `Spotify token refresh failed: ${response.status} ${response.statusText}${errorText ? ` — ${errorText}` : ''}`,
+    )
   }
 
   const data = (await response.json()) as {
@@ -144,7 +150,10 @@ async function spotifyGet<T>(path: string, accessToken: string): Promise<T> {
   })
 
   if (!response.ok) {
-    throw new Error(`Spotify request failed: ${response.status} ${response.statusText}`)
+    const errorText = await response.text().catch(() => '')
+    throw new Error(
+      `Spotify request failed for ${path}: ${response.status} ${response.statusText}${errorText ? ` — ${errorText}` : ''}`,
+    )
   }
 
   return (await response.json()) as T

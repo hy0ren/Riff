@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils'
 import { projectRoutes } from '@/features/projects/lib/project-routes'
 import { getPrimaryProjectId } from '@/features/projects/lib/project-selectors'
 import { useProjectContextStore } from '@/features/projects/store/use-project-context-store'
+import logo from '@/assets/logo-Photoroom.png'
 
 interface NavItem {
   label: string
@@ -109,24 +110,18 @@ export function Sidebar() {
       <div className="flex items-center gap-2.5 px-5 pt-5 pb-6">
         {/* Logo mark — stylized waveform */}
         <div
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
-          style={{ background: 'var(--riff-accent)', boxShadow: '0 0 12px var(--riff-glow-strong)' }}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl overflow-hidden"
+          style={{ background: 'var(--riff-surface-mid)', boxShadow: '0 0 15px rgba(82, 51, 255, 0.2)' }}
         >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-white">
-            <rect x="1" y="6" width="2" height="4" rx="1" fill="currentColor" opacity="0.6" />
-            <rect x="4.5" y="3" width="2" height="10" rx="1" fill="currentColor" />
-            <rect x="8" y="5" width="2" height="6" rx="1" fill="currentColor" opacity="0.8" />
-            <rect x="11.5" y="2" width="2" height="12" rx="1" fill="currentColor" opacity="0.7" />
-          </svg>
+          <img 
+            src={logo} 
+            alt="Riff Logo" 
+            className="h-full w-full object-cover"
+          />
         </div>
-        <div className="flex flex-col">
-          <span className="font-display text-sm font-bold tracking-tight text-[var(--riff-text-primary)]">
+          <span className="font-display text-lg font-bold tracking-tight text-[var(--riff-text-primary)]">
             Riff
           </span>
-          <span className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[var(--riff-text-faint)]">
-            AI Music Engine
-          </span>
-        </div>
       </div>
 
       {/* Primary navigation — creation workflow */}

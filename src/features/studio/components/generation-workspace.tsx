@@ -68,7 +68,7 @@ export function GenerationWorkspace({
       return
     }
 
-    const intervalId = window.setInterval(() => setNow(Date.now()), 1000)
+    const intervalId = window.setInterval(() => setNow(Date.now()), 120)
     return () => window.clearInterval(intervalId)
   }, [activeRun?.id, activeRun?.status, activeRun?.startedAt])
 
@@ -80,6 +80,16 @@ export function GenerationWorkspace({
   const activeVersion = versions.find((version) => version.id === activeVersionId)
 
   const retryKind: TrackVersionKind = activeRun?.kind ?? 'base'
+  const isGenerating = activeRun?.status === 'running'
+  const elapsedMs =
+    isGenerating && activeRun.startedAt
+      ? Math.max(0, now - new Date(activeRun.startedAt).getTime())
+      : 0
+  const waveformLength = 80
+  const synthesisHead = isGenerating
+    ? ((elapsedMs / 180) % (waveformLength + 12)) - 6
+    : 30
+  const playheadLeftPercent = `${((Math.max(0, Math.min(waveformLength - 1, synthesisHead)) + 1) / waveformLength) * 100}%`
 
   return (
     <div className="relative flex flex-1 flex-col gap-6 overflow-hidden rounded-2xl bg-[var(--riff-surface-low)] p-6 shadow-xl">
@@ -97,39 +107,66 @@ export function GenerationWorkspace({
             </span>
           </div>
         </div>
-        <div className="flex items-center gap-2 rounded-xl bg-[var(--riff-surface)] p-1">
-          <button className="rounded-lg bg-[var(--riff-surface-high)] px-4 py-2 text-sm font-semibold text-[var(--riff-text-primary)] shadow-sm">
-            Current Mix
-          </button>
-          <button className="rounded-lg px-4 py-2 text-sm font-medium text-[var(--riff-text-muted)]">
-            Stems
-          </button>
+        <div className="rounded-xl bg-[var(--riff-surface)] px-4 py-2 text-sm font-semibold text-[var(--riff-text-primary)] shadow-sm">
+          Current Mix
         </div>
       </div>
 
       <div className="flex flex-col gap-4">
         <div className="relative h-48 w-full overflow-hidden rounded-xl border border-[var(--riff-surface-highest)] bg-[var(--riff-surface-lowest)] p-4">
           <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-[var(--riff-accent)]/10 to-transparent" />
+          {isGenerating ? (
+            <div
+              className="pointer-events-none absolute inset-y-0 z-[1] w-24 -translate-x-1/2 bg-[radial-gradient(circle_at_center,rgba(18,117,226,0.28),rgba(18,117,226,0.0)_70%)] blur-xl"
+              style={{ left: playheadLeftPercent }}
+            />
+          ) : null}
           <div className="flex h-full w-full items-end gap-[2px] opacity-80">
-            {Array.from({ length: 80 }).map((_, index) => {
-              const height = Math.max(10, Math.sin(index * 0.2) * 40 + (index % 7) * 7 + 32)
-              const isPlayed = index < 30
+            {Array.from({ length: waveformLength }).map((_, index) => {
+              const baseHeight = Math.max(
+                10,
+                Math.sin(index * 0.2) * 40 + (index % 7) * 7 + 32,
+              )
+              const synthesisMotion =
+                Math.sin(elapsedMs / 220 + index * 0.55) * 16 +
+                Math.cos(elapsedMs / 510 + index * 0.18) * 9
+              const distanceFromHead = Math.abs(index - synthesisHead)
+              const synthesisFocus = Math.max(0, 1 - distanceFromHead / 12)
+              const height = isGenerating
+                ? Math.max(
+                    8,
+                    Math.min(100, baseHeight + synthesisMotion + synthesisFocus * 22),
+                  )
+                : baseHeight
+              const isPlayed = isGenerating ? synthesisFocus > 0.05 : index < 30
               return (
                 <div
                   key={index}
-                  className={`flex-1 rounded-t-sm transition-all duration-300 ${
+                  className={`flex-1 rounded-t-sm transition-all ${
                     isPlayed
-                      ? 'bg-[var(--riff-accent)] shadow-[0_0_8px_var(--riff-accent)]'
+                      ? 'bg-[var(--riff-accent)] shadow-[0_0_10px_var(--riff-accent)]'
                       : 'bg-[var(--riff-surface-highest)]'
                   }`}
-                  style={{ height: `${height}%` }}
+                  style={{
+                    height: `${height}%`,
+                    transitionDuration: isGenerating ? '120ms' : '300ms',
+                    opacity: isGenerating ? Math.max(0.4, 0.55 + synthesisFocus * 0.55) : undefined,
+                  }}
                 />
               )
             })}
           </div>
-          <div className="absolute bottom-0 left-[37.5%] top-0 z-10 flex w-px flex-col justify-start bg-white shadow-[0_0_12px_rgba(255,255,255,1)]">
+          <div
+            className="absolute bottom-0 top-0 z-10 flex w-px -translate-x-1/2 flex-col justify-start bg-white shadow-[0_0_12px_rgba(255,255,255,1)] transition-[left] duration-150"
+            style={{ left: playheadLeftPercent }}
+          >
             <div className="h-3 w-3 -translate-x-[5px] rounded-sm bg-white drop-shadow-md" />
           </div>
+          {isGenerating ? (
+            <div className="absolute right-4 top-4 rounded-full border border-[var(--riff-accent)]/30 bg-[var(--riff-accent)]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--riff-accent-light)]">
+              Synthesizing…
+            </div>
+          ) : null}
         </div>
 
         <div className="flex items-center justify-between pt-2">

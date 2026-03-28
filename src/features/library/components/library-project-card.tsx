@@ -1,7 +1,7 @@
 import type { PersistedProject } from '@/domain/project'
 import { Badge } from '@/components/ui/badge'
 import { 
-  Music, Layers, Heart, Play, Mic2, Globe, Trash2
+  Music, Layers, Heart, Play, Mic2, Globe, Trash2, Download, Pencil
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { relativeTime, statusColor, statusLabel } from '../lib/library-utils'
@@ -14,9 +14,20 @@ interface LibraryProjectCardProps {
   isSelected?: boolean
   onClick?: () => void
   onDelete?: () => void
+  onToggleFavorite?: () => void
+  onExport?: () => void
+  onRename?: () => void
 }
 
-export function LibraryProjectCard({ project, isSelected, onClick, onDelete }: LibraryProjectCardProps) {
+export function LibraryProjectCard({
+  project,
+  isSelected,
+  onClick,
+  onDelete,
+  onToggleFavorite,
+  onExport,
+  onRename,
+}: LibraryProjectCardProps) {
   const bp = project.blueprint
   const setTrack = usePlaybackStore((state) => state.setTrack)
   const activeVersion = getProjectVersion(project)
@@ -62,12 +73,47 @@ export function LibraryProjectCard({ project, isSelected, onClick, onDelete }: L
           </button>
         </div>
 
-        {/* Favorite */}
-        {project.isFavorite && (
-          <div className="absolute top-2.5 right-2.5">
-            <Heart className="h-4 w-4 fill-rose-500 text-rose-500 drop-shadow-lg" />
-          </div>
-        )}
+        <div className="absolute right-2.5 top-2.5 flex items-center gap-1.5">
+          {onToggleFavorite ? (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation()
+                onToggleFavorite()
+              }}
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-black/45 text-white/85 transition hover:bg-black/60"
+              aria-label={project.isFavorite ? `Unfavorite ${project.title}` : `Favorite ${project.title}`}
+            >
+              <Heart className={cn('h-4 w-4', project.isFavorite && 'fill-rose-500 text-rose-500 drop-shadow-lg')} />
+            </button>
+          ) : null}
+          {onExport ? (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation()
+                onExport()
+              }}
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-black/45 text-white/85 transition hover:bg-black/60"
+              aria-label={`Export ${project.title}`}
+            >
+              <Download className="h-4 w-4" />
+            </button>
+          ) : null}
+          {onRename ? (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation()
+                onRename()
+              }}
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-black/45 text-white/85 transition hover:bg-black/60"
+              aria-label={`Rename ${project.title}`}
+            >
+              <Pencil className="h-4 w-4" />
+            </button>
+          ) : null}
+        </div>
 
         {onDelete && (
           <button

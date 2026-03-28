@@ -1,6 +1,6 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { PageFrame } from '@/components/layout/page-frame'
-import { Navigate, useParams } from 'react-router-dom'
+import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { Input } from '@/components/ui/input'
 import { SourceContextPanel } from './components/source-context-panel'
 import { GenerationWorkspace } from './components/generation-workspace'
@@ -18,6 +18,8 @@ import { useStudioStore } from './store/use-studio-store'
 
 export function StudioPage() {
   const { projectId } = useParams()
+  const navigate = useNavigate()
+  const pendingRedirectRunIdRef = useRef<string | null>(null)
   const matchedProject = useMatchedProject(projectId)
   const activeProject = useResolvedProject(projectId)
   const activeSourceSet = getActiveSourceSet(activeProject)
@@ -51,6 +53,41 @@ export function StudioPage() {
   useEffect(() => {
     hydrateProject(activeProject.id)
   }, [activeProject.id, hydrateProject])
+
+  useEffect(() => {
+    if (!activeGenerationRunId) {
+      pendingRedirectRunIdRef.current = null
+      return
+    }
+
+    const activeRun = activeProject.generationRuns.find(
+      (generationRun) => generationRun.id === activeGenerationRunId,
+    )
+
+    if (!activeRun) {
+      pendingRedirectRunIdRef.current = null
+      return
+    }
+
+    if (activeRun.status === 'running') {
+      pendingRedirectRunIdRef.current = activeRun.id
+      return
+    }
+
+    if (
+      activeRun.status === 'succeeded' &&
+      pendingRedirectRunIdRef.current === activeRun.id &&
+      activeRun.outputVersionId
+    ) {
+      pendingRedirectRunIdRef.current = null
+      navigate(projectRoutes.details(activeProject.id), { replace: true })
+      return
+    }
+
+    if (activeRun.status === 'failed') {
+      pendingRedirectRunIdRef.current = null
+    }
+  }, [activeGenerationRunId, activeProject.generationRuns, activeProject.id, navigate])
 
   if (!matchedProject && projectId) {
     return <Navigate to={projectRoutes.studio(activeProject.id)} replace />

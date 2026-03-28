@@ -1,4 +1,4 @@
-import { Settings2 } from 'lucide-react'
+import { Check, Settings2 } from 'lucide-react'
 import type { BlueprintDraft, BlueprintDraftField } from '@/domain/blueprint-draft'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Badge } from '@/components/ui/badge'
@@ -161,22 +161,54 @@ export function BlueprintEditor({
             Vocal Design
           </AccordionTrigger>
           <AccordionContent className="space-y-4 pt-4 pb-2">
+            <div className="flex items-center justify-between rounded-lg bg-[var(--riff-surface-low)] p-3">
+              <div>
+                <p className="text-sm font-medium text-[var(--riff-text-primary)]">Performance Mode</p>
+                <p className="text-xs text-[var(--riff-text-muted)]">
+                  {draft.vocalsEnabled
+                    ? 'Vocal-led mode is active.'
+                    : 'Instrumental mode is active.'}
+                </p>
+              </div>
+              <Badge
+                variant="secondary"
+                className={
+                  draft.vocalsEnabled
+                    ? 'bg-[var(--riff-accent)]/15 text-[var(--riff-accent-light)]'
+                    : 'bg-emerald-500/15 text-emerald-300'
+                }
+              >
+                {draft.vocalsEnabled ? 'Vocal-led' : 'Instrumental'}
+              </Badge>
+            </div>
             <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
-                variant={draft.vocalsEnabled ? 'outline' : 'default'}
+                variant="outline"
                 size="sm"
+                className={
+                  draft.vocalsEnabled
+                    ? ''
+                    : 'border-emerald-500/40 bg-emerald-500/15 text-emerald-200 hover:bg-emerald-500/20'
+                }
                 onClick={() => {
                   onFieldChange('vocalsEnabled', false)
-                  onFieldChange('vocalStyle', '')
+                  if (draft.vocalsEnabled) {
+                    onFieldChange('vocalStyle', '')
+                  }
                 }}
               >
                 Instrumental Mode
               </Button>
               <Button
                 type="button"
-                variant={draft.vocalsEnabled ? 'default' : 'outline'}
+                variant="outline"
                 size="sm"
+                className={
+                  draft.vocalsEnabled
+                    ? 'border-[var(--riff-accent)] bg-[var(--riff-accent)]/15 text-[var(--riff-accent-light)] hover:bg-[var(--riff-accent)]/20'
+                    : ''
+                }
                 onClick={() => onFieldChange('vocalsEnabled', true)}
               >
                 Vocal-led
@@ -200,6 +232,7 @@ export function BlueprintEditor({
               value={draft.vocalStyle ?? ''}
               origin={draft.origins.vocalStyle}
               conflicted={draft.conflictFields.includes('vocalStyle')}
+              disabled={!draft.vocalsEnabled}
               onChange={(value) => onFieldChange('vocalStyle', value)}
             />
 
@@ -218,6 +251,7 @@ export function BlueprintEditor({
                 rows={4}
                 onChange={(event) => onFieldChange('lyricTheme', event.target.value)}
                 className="bg-[var(--riff-surface)] border-[var(--riff-surface-highest)]"
+                disabled={!draft.vocalsEnabled}
               />
             </div>
           </AccordionContent>
@@ -269,22 +303,46 @@ export function BlueprintEditor({
           <AccordionTrigger className="py-2 hover:no-underline text-[var(--riff-text-primary)]">
             Instrumentation
           </AccordionTrigger>
-          <AccordionContent className="pt-4 pb-2">
-            <div className="flex flex-wrap gap-2">
+          <AccordionContent className="space-y-3 pt-4 pb-2">
+            <p className="text-xs text-[var(--riff-text-muted)]">
+              Toggle instruments on or off for the generated arrangement.
+            </p>
+            <div className="grid grid-cols-1 gap-2">
               {Object.entries(draft.instruments).map(([instrument, active]) => {
                 const field = `instruments.${instrument}` as BlueprintDraftField
                 return (
                   <button
                     key={instrument}
                     type="button"
-                    onClick={() => onFieldChange(field, !active)}
-                    className={`rounded-full border px-3 py-1.5 text-xs transition-colors ${
+                    aria-pressed={active}
+                    className={`flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-sm transition-all ${
                       active
-                        ? 'border-[var(--riff-accent)] bg-[var(--riff-accent)] text-white'
-                        : 'border-[var(--riff-surface-highest)] bg-[var(--riff-surface-low)] text-[var(--riff-text-muted)]'
+                        ? 'border-[var(--riff-accent)] bg-[var(--riff-accent)]/18 text-[var(--riff-text-primary)] shadow-[0_0_0_1px_rgba(59,130,246,0.25)]'
+                        : 'border-[var(--riff-surface-highest)] bg-[var(--riff-surface-low)] text-[var(--riff-text-muted)] hover:border-[var(--riff-accent)]/40 hover:text-[var(--riff-text-secondary)]'
                     }`}
+                    onClick={() => onFieldChange(field, !active)}
                   >
-                    {instrument}
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={`flex h-5 w-5 items-center justify-center rounded-full border transition-colors ${
+                          active
+                            ? 'border-[var(--riff-accent)] bg-[var(--riff-accent)] text-white'
+                            : 'border-[var(--riff-surface-highest)] bg-[var(--riff-surface)] text-transparent'
+                        }`}
+                      >
+                        <Check className="h-3.5 w-3.5" />
+                      </span>
+                      <span className="font-medium capitalize">{formatInstrumentLabel(instrument)}</span>
+                    </div>
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${
+                        active
+                          ? 'bg-[var(--riff-accent)]/20 text-[var(--riff-accent-light)]'
+                          : 'bg-[var(--riff-surface)] text-[var(--riff-text-muted)]'
+                      }`}
+                    >
+                      {active ? 'On' : 'Off'}
+                    </span>
                   </button>
                 )
               })}
@@ -305,17 +363,28 @@ export function BlueprintEditor({
   )
 }
 
+function formatInstrumentLabel(instrument: string) {
+  switch (instrument) {
+    case 'synths':
+      return 'Synths'
+    default:
+      return instrument.charAt(0).toUpperCase() + instrument.slice(1)
+  }
+}
+
 function FieldInput({
   label,
   value,
   origin,
   conflicted,
+  disabled = false,
   onChange,
 }: {
   label: string
   value: string
   origin?: BlueprintDraft['origins'][BlueprintDraftField]
   conflicted?: boolean
+  disabled?: boolean
   onChange: (value: string) => void
 }) {
   return (
@@ -330,6 +399,7 @@ function FieldInput({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         className="bg-[var(--riff-surface)] border-[var(--riff-surface-highest)]"
+        disabled={disabled}
       />
     </div>
   )

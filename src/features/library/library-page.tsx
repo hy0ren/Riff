@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PageFrame } from '@/components/layout/page-frame'
 import { EmptyState } from '@/components/shared/empty-state'
@@ -22,6 +22,9 @@ import { LibraryProjectCard } from './components/library-project-card'
 import { LibraryProjectRow } from './components/library-project-row'
 import { LibraryInspector } from './components/library-inspector'
 import { useProjectStore } from '@/features/projects/store/use-project-store'
+import { getProjectVersion } from '@/features/projects/lib/project-selectors'
+import { exportLatestProjectVersion } from '@/features/projects/lib/project-export'
+import { createImportedAudioProject } from '@/features/projects/lib/import-audio-project'
 
 type ViewMode = 'grid' | 'list'
 type TabFilter = 'all' | 'drafts' | 'final' | 'favorites' | 'collections'
@@ -31,12 +34,21 @@ export function LibraryPage() {
   const navigate = useNavigate()
   const projects = useProjectStore((state) => state.projects)
   const deleteProject = useProjectStore((state) => state.deleteProject)
+  const updateProject = useProjectStore((state) => state.updateProject)
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const [activeTab, setActiveTab] = useState<TabFilter>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [sortMode, setSortMode] = useState<SortMode>('recent')
   const [projectPendingDelete, setProjectPendingDelete] = useState<string | null>(null)
+  const [projectPendingRename, setProjectPendingRename] = useState<string | null>(null)
+  const [renameValue, setRenameValue] = useState('')
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false)
+  const [isCollectionDialogOpen, setIsCollectionDialogOpen] = useState(false)
+  const [bulkSelection, setBulkSelection] = useState<string[]>([])
+  const [collectionName, setCollectionName] = useState('')
+  const [isImporting, setIsImporting] = useState(false)
+  const importInputRef = useRef<HTMLInputElement | null>(null)
 
   // Filtering
   const filtered = useMemo(() => {
@@ -86,6 +98,7 @@ export function LibraryPage() {
   }, [activeTab, projects, searchQuery, sortMode])
 
   const selectedProject = selectedId ? projects.find(p => p.id === selectedId) : null
+  const bulkSelectionSet = new Set(bulkSelection)
 
   // Stats
   const totalProjects = projects.length
@@ -107,6 +120,128 @@ export function LibraryPage() {
     setProjectPendingDelete(null)
   }
 
+  const handleToggleFavorite = (projectId: string) => {
+    updateProject(projectId, (project) => ({
+      ...project,
+      isFavorite: !project.isFavorite,
+      library: {
+        ...project.library,
+        isFavorite: !project.isFavorite,
+      },
+      updatedAt: new Date().toISOString(),
+    }))
+  }
+
+  const handleExportProject = async (projectId: string) => {
+    const project = projects.find((candidate) => candidate.id === projectId)
+    const version = project ? getProjectVersion(project) : undefined
+    if (!project || !version) {
+      return
+    }
+
+    await exportLatestProjectVersion(project, version)
+    updateProject(projectId, (currentProject) => ({
+      ...currentProject,
+      isExported: true,
+      library: {
+        ...currentProject.library,
+        isExported: true,
+      },
+      updatedAt: new Date().toISOString(),
+    }))
+  }
+
+  const openRenameDialog = (projectId: string) => {
+    const project = projects.find((candidate) => candidate.id === projectId)
+    setProjectPendingRename(projectId)
+    setRenameValue(project?.title ?? '')
+  }
+
+  const handleConfirmRename = () => {
+    if (!projectPendingRename || !renameValue.trim()) {
+      return
+    }
+
+    updateProject(projectPendingRename, (project) => ({
+      ...project,
+      title: renameValue.trim(),
+      updatedAt: new Date().toISOString(),
+    }))
+    setProjectPendingRename(null)
+    setRenameValue('')
+  }
+
+  const toggleBulkSelection = (projectId: string) => {
+    setBulkSelection((current) =>
+      current.includes(projectId)
+        ? current.filter((candidate) => candidate !== projectId)
+        : [...current, projectId],
+    )
+  }
+
+  const handleBulkExport = async () => {
+    const selectedProjects = projects.filter((project) => bulkSelectionSet.has(project.id))
+    for (const project of selectedProjects) {
+      const version = getProjectVersion(project)
+      if (!version) {
+        continue
+      }
+
+      await exportLatestProjectVersion(project, version)
+      updateProject(project.id, (currentProject) => ({
+        ...currentProject,
+        isExported: true,
+        library: {
+          ...currentProject.library,
+          isExported: true,
+        },
+        updatedAt: new Date().toISOString(),
+      }))
+    }
+
+    setIsExportDialogOpen(false)
+    setBulkSelection([])
+  }
+
+  const handleApplyCollection = () => {
+    const nextCollectionName = collectionName.trim()
+    if (!nextCollectionName || !bulkSelection.length) {
+      return
+    }
+
+    bulkSelection.forEach((projectId) => {
+      updateProject(projectId, (project) => ({
+        ...project,
+        collection: nextCollectionName,
+        library: {
+          ...project.library,
+          collection: nextCollectionName,
+        },
+        updatedAt: new Date().toISOString(),
+      }))
+    })
+
+    setIsCollectionDialogOpen(false)
+    setBulkSelection([])
+    setCollectionName('')
+  }
+
+  const handleImportFiles = async (files: FileList | null) => {
+    if (!files?.length) {
+      return
+    }
+
+    setIsImporting(true)
+    try {
+      for (const file of Array.from(files)) {
+        const importedProject = await createImportedAudioProject(file)
+        useProjectStore.getState().upsertProject(importedProject)
+      }
+    } finally {
+      setIsImporting(false)
+    }
+  }
+
   return (
     <>
       <PageFrame
@@ -123,14 +258,47 @@ export function LibraryPage() {
         inspectorWidth={380}
         actions={
           <div className="flex items-center gap-2">
-            <button className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-[var(--riff-accent)] to-[var(--riff-accent-focus)] text-white font-bold text-xs tracking-wide shadow-lg hover:shadow-xl transition-all active:scale-[0.98]">
+            <input
+              ref={importInputRef}
+              type="file"
+              multiple
+              accept="audio/*"
+              className="hidden"
+              onChange={(event) => {
+                void handleImportFiles(event.target.files)
+                event.currentTarget.value = ''
+              }}
+            />
+            <button
+              onClick={() => navigate('/create')}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-[var(--riff-accent)] to-[var(--riff-accent-focus)] text-white font-bold text-xs tracking-wide shadow-lg hover:shadow-xl transition-all active:scale-[0.98]"
+            >
               <Plus className="h-3.5 w-3.5" /> New Track
             </button>
-            <button className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-[var(--riff-surface-highest)] text-[var(--riff-text-secondary)] text-xs font-medium hover:bg-[var(--riff-surface-high)] transition-colors">
-              <Upload className="h-3.5 w-3.5" /> Import
+            <button
+              onClick={() => importInputRef.current?.click()}
+              className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-[var(--riff-surface-highest)] text-[var(--riff-text-secondary)] text-xs font-medium hover:bg-[var(--riff-surface-high)] transition-colors"
+            >
+              <Upload className="h-3.5 w-3.5" /> {isImporting ? 'Importing…' : 'Import'}
             </button>
-            <button className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-[var(--riff-surface-highest)] text-[var(--riff-text-secondary)] text-xs font-medium hover:bg-[var(--riff-surface-high)] transition-colors">
+            <button
+              onClick={() => {
+                setBulkSelection([])
+                setCollectionName('')
+                setIsCollectionDialogOpen(true)
+              }}
+              className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-[var(--riff-surface-highest)] text-[var(--riff-text-secondary)] text-xs font-medium hover:bg-[var(--riff-surface-high)] transition-colors"
+            >
               <FolderPlus className="h-3.5 w-3.5" /> Collection
+            </button>
+            <button
+              onClick={() => {
+                setBulkSelection([])
+                setIsExportDialogOpen(true)
+              }}
+              className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-[var(--riff-surface-highest)] text-[var(--riff-text-secondary)] text-xs font-medium hover:bg-[var(--riff-surface-high)] transition-colors"
+            >
+              <Archive className="h-3.5 w-3.5" /> Export
             </button>
           </div>
         }
@@ -237,6 +405,9 @@ export function LibraryPage() {
                 isSelected={selectedId === project.id}
                 onClick={() => setSelectedId(selectedId === project.id ? null : project.id)}
                 onDelete={() => setProjectPendingDelete(project.id)}
+                onToggleFavorite={() => handleToggleFavorite(project.id)}
+                onExport={() => void handleExportProject(project.id)}
+                onRename={() => openRenameDialog(project.id)}
               />
             ))}
           </div>
@@ -260,6 +431,9 @@ export function LibraryPage() {
                 isSelected={selectedId === project.id}
                 onClick={() => setSelectedId(selectedId === project.id ? null : project.id)}
                 onDelete={() => setProjectPendingDelete(project.id)}
+                onToggleFavorite={() => handleToggleFavorite(project.id)}
+                onExport={() => void handleExportProject(project.id)}
+                onRename={() => openRenameDialog(project.id)}
               />
             ))}
           </div>
@@ -285,6 +459,111 @@ export function LibraryPage() {
               onClick={handleConfirmDelete}
             >
               Delete Song
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!projectPendingRename} onOpenChange={(open) => !open && setProjectPendingRename(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename Song</DialogTitle>
+            <DialogDescription>
+              Update the title used across Library, Track Details, and exports.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            value={renameValue}
+            onChange={(event) => setRenameValue(event.target.value)}
+            placeholder="Song title"
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setProjectPendingRename(null)}>
+              Cancel
+            </Button>
+            <Button onClick={handleConfirmRename} disabled={!renameValue.trim()}>
+              Save Title
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isCollectionDialogOpen} onOpenChange={setIsCollectionDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create or Assign Collection</DialogTitle>
+            <DialogDescription>
+              Select songs from your library and group them under one collection name.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            value={collectionName}
+            onChange={(event) => setCollectionName(event.target.value)}
+            placeholder="Collection name"
+          />
+          <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+            {projects.map((project) => (
+              <label
+                key={project.id}
+                className="flex items-center justify-between rounded-lg border border-[var(--riff-surface-highest)] bg-[var(--riff-surface-low)] px-3 py-2"
+              >
+                <div>
+                  <p className="text-sm font-medium text-[var(--riff-text-primary)]">{project.title}</p>
+                  <p className="text-xs text-[var(--riff-text-muted)]">{project.collection ?? 'No collection'}</p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={bulkSelectionSet.has(project.id)}
+                  onChange={() => toggleBulkSelection(project.id)}
+                />
+              </label>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCollectionDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleApplyCollection} disabled={!collectionName.trim() || !bulkSelection.length}>
+              Save Collection
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Export Songs</DialogTitle>
+            <DialogDescription>
+              Select songs from your library and export their latest version to your computer.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+            {projects.map((project) => (
+              <label
+                key={project.id}
+                className="flex items-center justify-between rounded-lg border border-[var(--riff-surface-highest)] bg-[var(--riff-surface-low)] px-3 py-2"
+              >
+                <div>
+                  <p className="text-sm font-medium text-[var(--riff-text-primary)]">{project.title}</p>
+                  <p className="text-xs text-[var(--riff-text-muted)]">
+                    {getProjectVersion(project)?.name ?? 'No version'}
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={bulkSelectionSet.has(project.id)}
+                  onChange={() => toggleBulkSelection(project.id)}
+                />
+              </label>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsExportDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => void handleBulkExport()} disabled={!bulkSelection.length}>
+              Export Selected
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   FileAudio,
   FileMusic,
@@ -79,6 +80,105 @@ function getSourceMeta(sourceInput: SourceInput): string {
   }
 
   return sourceInput.role
+}
+
+function getInfluenceLabel(influence: SourceInfluence): string {
+  switch (influence) {
+    case 'supporting':
+      return 'secondary'
+    case 'reference':
+      return 'tertiary'
+    default:
+      return 'primary'
+  }
+}
+
+function SourceWeightControl({
+  sourceInputId,
+  itemWeight,
+  enabled,
+  onSourceWeightChange,
+}: {
+  sourceInputId: string
+  itemWeight: number
+  enabled: boolean
+  onSourceWeightChange: (sourceInputId: string, weight: number) => void
+}) {
+  const [previewWeight, setPreviewWeight] = useState(itemWeight)
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between text-xs text-[var(--riff-text-muted)]">
+        <span>Influence Weight</span>
+        <span className="font-mono text-[var(--riff-text-primary)]">{previewWeight}</span>
+      </div>
+      <Slider
+        key={`${sourceInputId}-${itemWeight}`}
+        defaultValue={[itemWeight]}
+        min={0}
+        max={100}
+        step={1}
+        disabled={!enabled}
+        onValueChange={(value) => setPreviewWeight(value[0] ?? itemWeight)}
+        onValueCommit={(value) => {
+          const nextWeight = value[0] ?? itemWeight
+          setPreviewWeight(nextWeight)
+          onSourceWeightChange(sourceInputId, nextWeight)
+        }}
+      />
+    </div>
+  )
+}
+
+function SourceInfluenceControl({
+  sourceInputId,
+  itemInfluence,
+  enabled,
+  onSourceInfluenceChange,
+}: {
+  sourceInputId: string
+  itemInfluence: SourceInfluence
+  enabled: boolean
+  onSourceInfluenceChange: (sourceInputId: string, influence: SourceInfluence) => void
+}) {
+  const [previewInfluence, setPreviewInfluence] = useState<SourceInfluence>(itemInfluence)
+
+  const influenceOptions: Array<{ value: SourceInfluence; label: string }> = [
+    { value: 'primary', label: 'primary' },
+    { value: 'supporting', label: 'secondary' },
+    { value: 'reference', label: 'tertiary' },
+  ]
+
+  return (
+    <>
+      <div className="flex items-center justify-between text-xs text-[var(--riff-text-muted)]">
+        <span>Influence Mode</span>
+        <span className="font-mono text-[var(--riff-text-primary)]">
+          {getInfluenceLabel(previewInfluence)}
+        </span>
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        {influenceOptions.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            disabled={!enabled}
+            onClick={() => {
+              setPreviewInfluence(option.value)
+              onSourceInfluenceChange(sourceInputId, option.value)
+            }}
+            className={`rounded-lg border px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide transition ${
+              previewInfluence === option.value
+                ? 'border-[var(--riff-accent)] bg-[var(--riff-accent)]/15 text-[var(--riff-accent-light)]'
+                : 'border-[var(--riff-surface-highest)] bg-[var(--riff-surface)] text-[var(--riff-text-muted)]'
+            } ${!enabled ? 'opacity-50' : ''}`}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    </>
+  )
 }
 
 export function SourceContextPanel({
@@ -185,7 +285,7 @@ export function SourceContextPanel({
 
               <div className="flex items-center gap-2">
                 <Badge variant="secondary" className="bg-[var(--riff-surface-highest)] text-[var(--riff-text-secondary)]">
-                  {item.influence}
+                  {getInfluenceLabel(item.influence)}
                 </Badge>
                 <Badge variant="secondary" className="bg-[var(--riff-surface-highest)] text-[var(--riff-text-secondary)]">
                   {sourceInput.provenance}
@@ -198,41 +298,17 @@ export function SourceContextPanel({
               </div>
 
               <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs text-[var(--riff-text-muted)]">
-                  <span>Influence Mode</span>
-                  <span className="font-mono text-[var(--riff-text-primary)]">{item.influence}</span>
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  {(['primary', 'supporting', 'reference'] as const).map((influence) => (
-                    <button
-                      key={influence}
-                      type="button"
-                      disabled={!item.enabled}
-                      onClick={() => onSourceInfluenceChange(sourceInput.id, influence)}
-                      className={`rounded-lg border px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide transition ${
-                        item.influence === influence
-                          ? 'border-[var(--riff-accent)] bg-[var(--riff-accent)]/15 text-[var(--riff-accent-light)]'
-                          : 'border-[var(--riff-surface-highest)] bg-[var(--riff-surface)] text-[var(--riff-text-muted)]'
-                      } ${!item.enabled ? 'opacity-50' : ''}`}
-                    >
-                      {influence}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex items-center justify-between text-xs text-[var(--riff-text-muted)]">
-                  <span>Influence Weight</span>
-                  <span className="font-mono text-[var(--riff-text-primary)]">{item.weight}</span>
-                </div>
-                <Slider
-                  key={`${sourceInput.id}-${item.weight}`}
-                  defaultValue={[item.weight]}
-                  min={0}
-                  max={100}
-                  step={1}
-                  disabled={!item.enabled}
-                  onValueCommit={(value) =>
-                    onSourceWeightChange(sourceInput.id, value[0] ?? item.weight)
-                  }
+                <SourceInfluenceControl
+                  sourceInputId={sourceInput.id}
+                  itemInfluence={item.influence}
+                  enabled={item.enabled}
+                  onSourceInfluenceChange={onSourceInfluenceChange}
+                />
+                <SourceWeightControl
+                  sourceInputId={sourceInput.id}
+                  itemWeight={item.weight}
+                  enabled={item.enabled}
+                  onSourceWeightChange={onSourceWeightChange}
                 />
               </div>
             </div>

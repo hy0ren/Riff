@@ -14,6 +14,16 @@ import {
 } from '@/features/projects/lib/project-selectors'
 import { projectRoutes } from '@/features/projects/lib/project-routes'
 import { useProjectRouteContext } from '@/features/projects/hooks/use-project-route-context'
+import {
+  buildChordSheetPlainText,
+  buildLyricsPlainText,
+  buildMelodyGuidePlainText,
+  getVersionBlueprint,
+  getVersionLyrics,
+  getVersionSectionGuides,
+  getVersionStructure,
+} from '@/features/projects/lib/project-details'
+import { exportAssetToDisk } from '@/lib/platform/fs-commands'
 
 export function TrackDetailsPage() {
   const { projectId, versionId } = useParams()
@@ -21,6 +31,12 @@ export function TrackDetailsPage() {
   const activeProject = useResolvedProject(projectId)
   const activeVersion = activeProject.versions
     ? getProjectVersion(activeProject, versionId)
+    : undefined
+  const activeBlueprint = activeVersion ? getVersionBlueprint(activeProject, activeVersion) : undefined
+  const activeLyrics = activeVersion ? getVersionLyrics(activeProject, activeVersion) : undefined
+  const activeStructure = activeVersion ? getVersionStructure(activeProject, activeVersion) : undefined
+  const activeSectionGuides = activeVersion
+    ? getVersionSectionGuides(activeProject, activeVersion)
     : undefined
 
   useProjectRouteContext({
@@ -39,6 +55,55 @@ export function TrackDetailsPage() {
 
   if (!activeVersion) {
     return <Navigate to={projectRoutes.details(activeProject.id)} replace />
+  }
+
+  const handleExportLyrics = async () => {
+    await exportAssetToDisk({
+      projectId: activeProject.id,
+      assetId: `${activeVersion.id}-lyrics-sheet`,
+      filename: `${activeProject.title}-${activeVersion.name}-lyrics.txt`.replace(/\s+/g, '-').toLowerCase(),
+      format: 'txt',
+      contents: buildLyricsPlainText(activeLyrics),
+      mimeType: 'text/plain',
+    })
+  }
+
+  const handleExportSong = async () => {
+    if (!activeVersion.audioUrl) {
+      return
+    }
+
+    const match = activeVersion.audioUrl.match(/^data:([^;]+);base64,(.+)$/)
+    await exportAssetToDisk({
+      projectId: activeProject.id,
+      assetId: `${activeVersion.id}-audio`,
+      filename: `${activeProject.title}-${activeVersion.name}.wav`.replace(/\s+/g, '-').toLowerCase(),
+      format: 'wav',
+      base64Data: match?.[2],
+      mimeType: match?.[1] ?? 'audio/wav',
+    })
+  }
+
+  const handleExportChords = async () => {
+    await exportAssetToDisk({
+      projectId: activeProject.id,
+      assetId: `${activeVersion.id}-chord-sheet`,
+      filename: `${activeProject.title}-${activeVersion.name}-chords.txt`.replace(/\s+/g, '-').toLowerCase(),
+      format: 'txt',
+      contents: buildChordSheetPlainText(activeStructure),
+      mimeType: 'text/plain',
+    })
+  }
+
+  const handleExportMelodyGuide = async () => {
+    await exportAssetToDisk({
+      projectId: activeProject.id,
+      assetId: `${activeVersion.id}-melody-guide`,
+      filename: `${activeProject.title}-${activeVersion.name}-melody-guide.txt`.replace(/\s+/g, '-').toLowerCase(),
+      format: 'txt',
+      contents: buildMelodyGuidePlainText(activeBlueprint, activeSectionGuides),
+      mimeType: 'text/plain',
+    })
   }
 
   return (
@@ -61,19 +126,47 @@ export function TrackDetailsPage() {
             
             <div className="mt-8">
               <TabsContent value="overview" className="focus-visible:outline-none">
-                <OverviewTab project={activeProject} version={activeVersion} />
+                <OverviewTab
+                  project={activeProject}
+                  version={activeVersion}
+                  blueprint={activeBlueprint}
+                  structure={activeStructure}
+                />
               </TabsContent>
               <TabsContent value="chords" className="focus-visible:outline-none">
-                <ChordsTab version={activeVersion} />
+                <ChordsTab
+                  structure={activeStructure}
+                  onExport={() => void handleExportChords()}
+                />
               </TabsContent>
               <TabsContent value="melody" className="focus-visible:outline-none">
-                <MelodyTab version={activeVersion} />
+                <MelodyTab
+                  version={activeVersion}
+                  blueprint={activeBlueprint}
+                  structure={activeStructure}
+                  lyrics={activeLyrics}
+                  sectionGuides={activeSectionGuides}
+                  onExport={() => void handleExportMelodyGuide()}
+                />
               </TabsContent>
               <TabsContent value="lyrics" className="focus-visible:outline-none">
-                <LyricsTab version={activeVersion} />
+                <LyricsTab
+                  lyrics={activeLyrics}
+                  structure={activeStructure}
+                  onExport={() => void handleExportLyrics()}
+                />
               </TabsContent>
               <TabsContent value="exports" className="focus-visible:outline-none">
-                <ExportsTab version={activeVersion} />
+                <ExportsTab
+                  project={activeProject}
+                  version={activeVersion}
+                  lyrics={activeLyrics}
+                  structure={activeStructure}
+                  onExportSong={() => void handleExportSong()}
+                  onExportLyrics={() => void handleExportLyrics()}
+                  onExportChords={() => void handleExportChords()}
+                  onExportMelodyGuide={() => void handleExportMelodyGuide()}
+                />
               </TabsContent>
             </div>
           </Tabs>

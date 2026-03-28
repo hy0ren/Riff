@@ -1,14 +1,17 @@
+import type { Blueprint, TrackStructureNode } from '@/domain/blueprint'
 import type { Project, ProjectVersion } from '@/domain/project'
 import { Mic2, Guitar, AlignLeft } from 'lucide-react'
 
 interface OverviewTabProps {
   project: Project
   version: ProjectVersion
+  blueprint?: Blueprint
+  structure?: TrackStructureNode[]
 }
 
-export function OverviewTab({ project, version }: OverviewTabProps) {
-  const bpm = project.blueprint?.bpm || project.bpm
-  const keyMode = project.blueprint ? `${project.blueprint.key} ${project.blueprint.mode}` : project.key
+export function OverviewTab({ project, version, blueprint, structure }: OverviewTabProps) {
+  const bpm = blueprint?.bpm || project.bpm
+  const keyMode = blueprint ? `${blueprint.key} ${blueprint.mode}` : project.key
   
   return (
     <div className="flex gap-12">
@@ -23,7 +26,7 @@ export function OverviewTab({ project, version }: OverviewTabProps) {
           </div>
           
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {version.structure?.map((section) => (
+            {structure?.map((section) => (
               <div key={section.id} className="flex flex-col gap-2 p-4 rounded-xl bg-[var(--riff-surface-low)] border border-[var(--riff-surface-highest)] hover:border-[var(--riff-accent)]/30 hover:bg-[var(--riff-surface-high)] transition-colors group cursor-default">
                 <div className="flex items-start justify-between">
                   <span className="text-sm font-bold text-[var(--riff-text-primary)] group-hover:text-[var(--riff-accent-light)] transition-colors">{section.label}</span>
@@ -48,7 +51,7 @@ export function OverviewTab({ project, version }: OverviewTabProps) {
           </div>
           
           <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3">
-             {Object.entries(project.blueprint?.instruments || {}).map(([inst, active]) => {
+             {Object.entries(blueprint?.instruments || {}).map(([inst, active]) => {
                if (!active) return null;
                return (
                  <div key={inst} className="flex items-center gap-3 p-3 rounded-lg bg-[var(--riff-surface-highest)] border border-transparent hover:border-[var(--riff-text-muted)] transition-colors">
@@ -79,8 +82,8 @@ export function OverviewTab({ project, version }: OverviewTabProps) {
                <span className="text-lg font-mono font-bold text-[var(--riff-text-primary)]">{keyMode}</span>
              </div>
              <div className="flex justify-between items-center border-b border-[var(--riff-surface-highest)] pb-5">
-               <span className="text-sm font-medium text-[var(--riff-text-muted)]">Energy</span>
-               <span className="text-sm font-medium text-[var(--riff-accent-light)]">{project.blueprint?.energy || 'Medium'}</span>
+              <span className="text-sm font-medium text-[var(--riff-text-muted)]">Energy</span>
+               <span className="text-sm font-medium text-[var(--riff-accent-light)]">{blueprint?.energy || 'Medium'}</span>
              </div>
              <div className="flex justify-between items-center pt-2">
                <span className="text-sm font-medium text-[var(--riff-text-muted)]">Format</span>
@@ -90,7 +93,7 @@ export function OverviewTab({ project, version }: OverviewTabProps) {
         </div>
 
         {/* Vocal Details */}
-        {project.blueprint?.vocalsEnabled && (
+        {blueprint?.vocalsEnabled && (
           <div className="rounded-xl bg-[var(--riff-surface-low)] border border-[var(--riff-surface-highest)] p-6 shadow-xl">
             <h3 className="text-xs font-semibold uppercase tracking-widest text-[var(--riff-text-secondary)] mb-4 flex items-center gap-2">
               <Mic2 className="h-4 w-4" /> Vocal Print
@@ -98,11 +101,11 @@ export function OverviewTab({ project, version }: OverviewTabProps) {
             <div className="space-y-3">
                <div>
                  <p className="text-[10px] text-[var(--riff-text-muted)] uppercase tracking-wider mb-1">Style</p>
-                 <p className="text-sm font-medium text-[var(--riff-text-primary)]">{project.blueprint.vocalStyle}</p>
+                 <p className="text-sm font-medium text-[var(--riff-text-primary)]">{blueprint.vocalStyle}</p>
                </div>
                <div>
                  <p className="text-[10px] text-[var(--riff-text-muted)] uppercase tracking-wider mb-1">Theme</p>
-                 <p className="text-sm italic text-[var(--riff-text-secondary)]">"{project.blueprint.lyricTheme || 'Reflective, atmospheric'}"</p>
+                 <p className="text-sm italic text-[var(--riff-text-secondary)]">"{blueprint.lyricTheme || 'Reflective, atmospheric'}"</p>
                </div>
            </div>
           </div>

@@ -1,7 +1,7 @@
 import type { PersistedProject } from '@/domain/project'
 import { Badge } from '@/components/ui/badge'
 import { 
-  Music, Layers, Heart, Play, Mic2, Globe, Trash2
+  Music, Layers, Heart, Play, Mic2, Globe, Trash2, Download, Pencil
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { relativeTime, sourceLabel, statusColor, statusLabel } from '../lib/library-utils'
@@ -14,9 +14,20 @@ interface LibraryProjectRowProps {
   isSelected?: boolean
   onClick?: () => void
   onDelete?: () => void
+  onToggleFavorite?: () => void
+  onExport?: () => void
+  onRename?: () => void
 }
 
-export function LibraryProjectRow({ project, isSelected, onClick, onDelete }: LibraryProjectRowProps) {
+export function LibraryProjectRow({
+  project,
+  isSelected,
+  onClick,
+  onDelete,
+  onToggleFavorite,
+  onExport,
+  onRename,
+}: LibraryProjectRowProps) {
   const bp = project.blueprint
   const setTrack = usePlaybackStore((state) => state.setTrack)
   const activeVersion = getProjectVersion(project)
@@ -109,19 +120,60 @@ export function LibraryProjectRow({ project, isSelected, onClick, onDelete }: Li
         {relativeTime(project.updatedAt)}
       </div>
 
-      {onDelete ? (
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation()
-            onDelete()
-          }}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--riff-text-muted)] transition hover:bg-red-500/10 hover:text-red-300"
-          aria-label={`Delete ${project.title}`}
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
-      ) : null}
+      <div className="flex items-center gap-1 shrink-0">
+        {onToggleFavorite ? (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation()
+              onToggleFavorite()
+            }}
+            className="flex h-8 w-8 items-center justify-center rounded-md text-[var(--riff-text-muted)] transition hover:bg-rose-500/10 hover:text-rose-300"
+            aria-label={project.isFavorite ? `Unfavorite ${project.title}` : `Favorite ${project.title}`}
+          >
+            <Heart className={cn('h-4 w-4', project.isFavorite && 'fill-rose-500 text-rose-500')} />
+          </button>
+        ) : null}
+        {onExport ? (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation()
+              onExport()
+            }}
+            className="flex h-8 w-8 items-center justify-center rounded-md text-[var(--riff-text-muted)] transition hover:bg-[var(--riff-surface-high)] hover:text-[var(--riff-text-primary)]"
+            aria-label={`Export ${project.title}`}
+          >
+            <Download className="h-4 w-4" />
+          </button>
+        ) : null}
+        {onRename ? (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation()
+              onRename()
+            }}
+            className="flex h-8 w-8 items-center justify-center rounded-md text-[var(--riff-text-muted)] transition hover:bg-[var(--riff-surface-high)] hover:text-[var(--riff-text-primary)]"
+            aria-label={`Rename ${project.title}`}
+          >
+            <Pencil className="h-4 w-4" />
+          </button>
+        ) : null}
+        {onDelete ? (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation()
+              onDelete()
+            }}
+            className="flex h-8 w-8 items-center justify-center rounded-md text-[var(--riff-text-muted)] transition hover:bg-red-500/10 hover:text-red-300"
+            aria-label={`Delete ${project.title}`}
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        ) : null}
+      </div>
     </div>
   )
 }

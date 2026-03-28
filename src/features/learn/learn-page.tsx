@@ -139,12 +139,22 @@ export function LearnPage() {
   const learningNotes = insight?.learningNotes ?? insight?.practiceNotes ?? []
   const chordSections = insight?.chordSections ?? activeVersion.structure ?? []
   const lyricSections = insight?.lyricSections ?? activeVersion.lyrics ?? []
-  const sectionGuides =
+  const rawSectionGuides =
     insight?.sectionGuides ??
-    chordSections.map((section) => {
+    chordSections.map((section, index) => {
       const matchingLyrics = lyricSections.find(
         (candidate) => candidate.label.toLowerCase() === section.label.toLowerCase(),
       )
+      const chordDesc =
+        section.chords.length > 1
+          ? `${section.chords[0]} → ${section.chords[section.chords.length - 1]} progression`
+          : `${section.chords[0] ?? 'root chord'} foundation`
+      const focusOptions = [
+        `Lock in the ${section.label.toLowerCase()} rhythm and ${chordDesc}.`,
+        `Focus on the ${section.label.toLowerCase()} groove — feel the ${chordDesc}.`,
+        `Nail the ${section.label.toLowerCase()} timing, especially the ${chordDesc}.`,
+        `Internalize the ${section.label.toLowerCase()} energy and ${chordDesc}.`,
+      ]
       return {
         id: `fallback-${section.id}`,
         label: section.label,
@@ -152,10 +162,20 @@ export function LearnPage() {
         duration: section.duration,
         chords: section.chords,
         lyricCue: matchingLyrics?.lines.slice(0, 2),
-        focus: `Lock in the ${section.label.toLowerCase()} rhythm and chord pattern.`,
+        focus: focusOptions[index % focusOptions.length],
         memoryCue: matchingLyrics?.lines[0],
       }
     })
+
+  const sectionGuides = rawSectionGuides.map((section, index) => {
+    if (index === 0) return section
+    const prev = rawSectionGuides[index - 1]
+    const expectedStart = prev.startTime + prev.duration
+    if (section.startTime > expectedStart) {
+      return { ...section, startTime: expectedStart }
+    }
+    return section
+  })
   const practiceChecklist = insight?.practiceChecklist ?? [
     'Listen through once from start to finish.',
     'Loop the chorus until the transition feels automatic.',
@@ -168,6 +188,12 @@ export function LearnPage() {
   const hasLearnPack = Boolean(
     sectionGuides.length || lyricSections.length || chordSections.length,
   )
+
+  const computedDuration = sectionGuides.reduce(
+    (max, section) => Math.max(max, section.startTime + section.duration),
+    0,
+  )
+  const totalDuration = Math.max(activeVersion.duration, computedDuration)
 
   return (
     <PageFrame
@@ -254,7 +280,7 @@ export function LearnPage() {
               </div>
               <div className="flex items-center justify-between text-[var(--riff-text-primary)]">
                 <span className="text-[var(--riff-text-muted)]">Duration</span>
-                <span>{formatDuration(activeVersion.duration)}</span>
+                <span>{formatDuration(totalDuration)}</span>
               </div>
               <div className="flex items-center justify-between text-[var(--riff-text-primary)]">
                 <span className="text-[var(--riff-text-muted)]">Sections</span>
@@ -342,7 +368,7 @@ export function LearnPage() {
                       <div className="flex items-center gap-2 text-xs text-[var(--riff-text-muted)]">
                         <Clock3 className="h-3.5 w-3.5" />
                         <span>
-                          {formatDuration(section.startTime)} · {section.duration}s
+                          {formatDuration(section.startTime)} – {formatDuration(section.startTime + section.duration)}
                         </span>
                       </div>
                     </div>
@@ -372,7 +398,7 @@ export function LearnPage() {
                           Memory Cue
                         </p>
                         <p className="mt-2 text-sm leading-relaxed text-[var(--riff-text-secondary)]">
-                          {section.memoryCue ?? 'Use the chord shape and groove change as the anchor.'}
+                          {section.memoryCue ?? `Anchor the ${section.label.toLowerCase()} by feeling the ${section.chords.length > 1 ? `${section.chords[0]} → ${section.chords[section.chords.length - 1]} movement` : `${section.chords[0] ?? 'root'} groove`} at ${formatDuration(section.startTime)}.`}
                         </p>
                       </div>
                     </div>
@@ -417,7 +443,7 @@ export function LearnPage() {
                             {section.label}
                           </p>
                           <span className="text-[10px] text-[var(--riff-text-muted)]">
-                            {section.duration}s
+                            {formatDuration(section.startTime)} – {formatDuration(section.startTime + section.duration)}
                           </span>
                         </div>
                         <div className="mt-2 flex flex-wrap gap-2">

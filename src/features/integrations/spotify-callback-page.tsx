@@ -1,12 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { PageFrame } from '@/components/layout/page-frame'
-import { completeSpotifyAuthorization, syncSpotifyLibrary } from '@/lib/providers/spotify-gateway'
+import {
+  clearPendingSpotifyAuth,
+  completeSpotifyAuthorization,
+  readPendingSpotifyAuth,
+  syncSpotifyLibrary,
+} from '@/lib/providers/spotify-gateway'
 import { useIntegrationStore } from './store/use-integration-store'
 
 export function SpotifyCallbackPage() {
   const location = useLocation()
   const [status, setStatus] = useState<'processing' | 'failed'>('processing')
+  const [step, setStep] = useState<'validating' | 'token' | 'sync'>('validating')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const auth = useIntegrationStore((state) => state.spotify.auth)
   const setSpotifyAuth = useIntegrationStore((state) => state.setSpotifyAuth)
@@ -28,23 +34,36 @@ export function SpotifyCallbackPage() {
         return
       }
 
-      if (!code || !state || !auth.state || state !== auth.state) {
+      const pendingAuth = readPendingSpotifyAuth()
+      const resolvedAuth =
+        auth.state === state && auth.codeVerifier
+          ? auth
+          : pendingAuth?.state === state && pendingAuth.codeVerifier
+            ? pendingAuth
+            : auth
+
+      if (!code || !state || !resolvedAuth.state || state !== resolvedAuth.state) {
         setStatus('failed')
-        setErrorMessage('Spotify callback validation failed.')
+        setErrorMessage(
+          'Spotify callback validation failed. Reconnect from the same app origin you started from.',
+        )
         return
       }
 
       try {
+        setStep('token')
         const nextAuth = await completeSpotifyAuthorization({
           code,
-          storedAuth: auth,
+          storedAuth: resolvedAuth,
         })
 
         if (cancelled) {
           return
         }
 
+        clearPendingSpotifyAuth()
         setSpotifyAuth(nextAuth)
+        setStep('sync')
         const syncResult = await syncSpotifyLibrary(nextAuth)
         if (cancelled) {
           return
@@ -97,7 +116,11 @@ export function SpotifyCallbackPage() {
               Connecting Spotify
             </h2>
             <p className="mt-3 text-sm text-[var(--riff-text-muted)]">
-              Exchanging your authorization code and importing your profile.
+              {step === 'validating'
+                ? 'Validating callback state.'
+                : step === 'token'
+                  ? 'Exchanging your authorization code.'
+                  : 'Importing your Spotify profile and library.'}
             </p>
           </>
         ) : (

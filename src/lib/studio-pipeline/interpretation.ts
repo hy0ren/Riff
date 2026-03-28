@@ -4,6 +4,7 @@ import type { Project } from '@/domain/project'
 import type { SourceInput } from '@/domain/source-input'
 import type { SourceSet, SourceSetItem } from '@/domain/source-set'
 import { createStudioId, nowIso } from './ids'
+import { buildChordSectionSuggestion, inferKeyFromChordText } from '@/lib/music-analysis'
 
 const BPM_HINTS: Record<SourceInput['type'], number> = {
   hum: 118,
@@ -132,8 +133,9 @@ function getWeightedAverage(activeItems: SourceSetItem[], sourceInputs: SourceIn
       continue
     }
 
+    const detectedBpm = sourceInput.normalized?.detectedBpm
     totalWeight += item.weight
-    weightedBpm += BPM_HINTS[sourceInput.type] * item.weight
+    weightedBpm += (detectedBpm ?? BPM_HINTS[sourceInput.type]) * item.weight
   }
 
   if (!totalWeight) {
@@ -141,6 +143,34 @@ function getWeightedAverage(activeItems: SourceSetItem[], sourceInputs: SourceIn
   }
 
   return Math.round(weightedBpm / totalWeight)
+}
+
+function getDetectedHarmonicCenter(
+  activeItems: SourceSetItem[],
+  sourceInputs: SourceInput[],
+): { key?: string; mode?: MusicalMode } | undefined {
+  const itemById = new Map(activeItems.map((item) => [item.sourceInputId, item]))
+  let bestWeight = 0
+  let resolved: { key?: string; mode?: MusicalMode } | undefined
+
+  for (const sourceInput of sourceInputs) {
+    const weight = itemById.get(sourceInput.id)?.weight ?? 0
+    const detectedKey = sourceInput.normalized?.detectedKey
+    const detectedMode = sourceInput.normalized?.detectedMode
+    const chordInference =
+      sourceInput.type === 'chord_progression' && 'text' in sourceInput
+        ? inferKeyFromChordText(sourceInput.text)
+        : undefined
+    const key = detectedKey ?? chordInference?.key
+    const mode = detectedMode ?? chordInference?.mode
+
+    if (key && weight >= bestWeight) {
+      bestWeight = weight
+      resolved = { key, mode }
+    }
+  }
+
+  return resolved
 }
 
 function getMostInfluentialSource(activeItems: SourceSetItem[], sourceInputs: SourceInput[]): SourceInput | undefined {
@@ -201,6 +231,96 @@ function getDefaultStructure(duration: number): TrackStructureNode[] {
   ]
 }
 
+function buildStructuredChordArrangement(
+  activeSources: SourceInput[],
+  durationSeconds: number,
+): TrackStructureNode[] | undefined {
+  const chordSource = activeSources.find(
+    (sourceInput): sourceInput is SourceInput & { type: 'chord_progression'; text: string } =>
+      sourceInput.type === 'chord_progression' && 'text' in sourceInput,
+  )
+
+  if (!chordSource?.text) {
+    return undefined
+  }
+
+  const suggestion = buildChordSectionSuggestion(chordSource.text, {
+    keyChangeAfterBridge: chordSource.normalized?.keyChangeAfterBridge,
+  })
+
+  if (!suggestion) {
+    return undefined
+  }
+
+  const intro = Math.max(10, Math.round(durationSeconds * 0.08))
+  const verse = Math.max(24, Math.round(durationSeconds * 0.2))
+  const chorus = Math.max(24, Math.round(durationSeconds * 0.18))
+  const bridge = Math.max(18, Math.round(durationSeconds * 0.14))
+  const outro = Math.max(10, durationSeconds - intro - verse * 2 - chorus * 3 - bridge)
+
+  return [
+    { id: 'sec-intro', label: 'Intro', startTime: 0, duration: intro, chords: suggestion.verse.slice(0, 2) },
+    { id: 'sec-verse-1', label: 'Verse 1', startTime: intro, duration: verse, chords: suggestion.verse },
+    { id: 'sec-chorus-1', label: 'Chorus', startTime: intro + verse, duration: chorus, chords: suggestion.chorus },
+    { id: 'sec-verse-2', label: 'Verse 2', startTime: intro + verse + chorus, duration: verse, chords: suggestion.verse },
+    { id: 'sec-chorus-2', label: 'Chorus', startTime: intro + verse * 2 + chorus, duration: chorus, chords: suggestion.chorus },
+    { id: 'sec-bridge', label: 'Bridge', startTime: intro + verse * 2 + chorus * 2, duration: bridge, chords: suggestion.bridge },
+    {
+      id: 'sec-chorus-3',
+      label: suggestion.keyChangeAfterBridge && suggestion.postBridgeKey
+        ? `Final Chorus (${suggestion.postBridgeKey})`
+        : 'Final Chorus',
+      startTime: intro + verse * 2 + chorus * 2 + bridge,
+      duration: chorus,
+      chords: suggestion.finalChorus,
+    },
+    {
+      id: 'sec-outro',
+      label: 'Outro',
+      startTime: intro + verse * 2 + chorus * 3 + bridge,
+      duration: outro,
+      chords: suggestion.finalChorus.slice(0, 2),
+    },
+  ]
+}
+
+function buildDetectedAudioChordArrangement(
+  activeSources: SourceInput[],
+  durationSeconds: number,
+): TrackStructureNode[] | undefined {
+  const audioSourceWithChords = activeSources.find((sourceInput) =>
+    ['hum', 'sung_melody', 'riff_audio'].includes(sourceInput.type) &&
+    Boolean(sourceInput.normalized?.detectedChordProgression?.length),
+  )
+
+  const detectedChords = audioSourceWithChords?.normalized?.detectedChordProgression
+  if (!detectedChords?.length) {
+    return undefined
+  }
+
+  const intro = Math.max(10, Math.round(durationSeconds * 0.08))
+  const verse = Math.max(24, Math.round(durationSeconds * 0.2))
+  const chorus = Math.max(24, Math.round(durationSeconds * 0.18))
+  const bridge = Math.max(18, Math.round(durationSeconds * 0.14))
+  const outro = Math.max(10, durationSeconds - intro - verse * 2 - chorus * 3 - bridge)
+  const verseChords = detectedChords.slice(0, Math.min(4, detectedChords.length))
+  const chorusChords =
+    detectedChords.length > 3
+      ? detectedChords.slice(-Math.min(4, detectedChords.length))
+      : verseChords
+
+  return [
+    { id: 'sec-intro', label: 'Intro', startTime: 0, duration: intro, chords: verseChords.slice(0, 2) },
+    { id: 'sec-verse-1', label: 'Verse 1', startTime: intro, duration: verse, chords: verseChords },
+    { id: 'sec-chorus-1', label: 'Chorus', startTime: intro + verse, duration: chorus, chords: chorusChords },
+    { id: 'sec-verse-2', label: 'Verse 2', startTime: intro + verse + chorus, duration: verse, chords: verseChords },
+    { id: 'sec-chorus-2', label: 'Chorus', startTime: intro + verse * 2 + chorus, duration: chorus, chords: chorusChords },
+    { id: 'sec-bridge', label: 'Bridge', startTime: intro + verse * 2 + chorus * 2, duration: bridge, chords: [...verseChords].reverse() },
+    { id: 'sec-chorus-3', label: 'Final Chorus', startTime: intro + verse * 2 + chorus * 2 + bridge, duration: chorus, chords: chorusChords },
+    { id: 'sec-outro', label: 'Outro', startTime: intro + verse * 2 + chorus * 3 + bridge, duration: outro, chords: chorusChords.slice(0, 2) },
+  ]
+}
+
 function parseDurationToSeconds(targetDuration?: string): number {
   if (!targetDuration?.includes(':')) {
     return 225
@@ -212,6 +332,16 @@ function parseDurationToSeconds(targetDuration?: string): number {
   }
 
   return minutes * 60 + seconds
+}
+
+function extractStructuredLyricSection(text: string | undefined, section: 'Chorus' | 'Verse' | 'Bridge'): string | undefined {
+  if (!text) {
+    return undefined
+  }
+
+  const regex = new RegExp(`${section}:\\s*([\\s\\S]*?)(?=\\n\\n(?:Verse|Chorus|Bridge|Notes):|$)`, 'i')
+  const match = text.match(regex)
+  return match?.[1]?.trim() || undefined
 }
 
 function buildInstrumentPlan(sourceInputs: SourceInput[], fallback?: InstrumentPlan): InstrumentPlan {
@@ -294,8 +424,9 @@ export function createInterpretationSnapshot({
   const baseSource = getMostInfluentialSource(activeItems, activeSources)
 
   const bpm = getWeightedAverage(activeItems, activeSources, activeBlueprint?.bpm ?? project.bpm ?? 118)
-  const key = activeBlueprint?.key ?? (baseSource ? KEY_HINTS[baseSource.type] : 'C')
-  const mode = activeBlueprint?.mode ?? (baseSource ? MODE_HINTS[baseSource.type] : 'Minor')
+  const detectedHarmonicCenter = getDetectedHarmonicCenter(activeItems, activeSources)
+  const key = activeBlueprint?.key ?? detectedHarmonicCenter?.key ?? (baseSource ? KEY_HINTS[baseSource.type] : 'C')
+  const mode = activeBlueprint?.mode ?? detectedHarmonicCenter?.mode ?? (baseSource ? MODE_HINTS[baseSource.type] : 'Minor')
   const genre = activeBlueprint?.genre ?? getMostCommonHint(activeItems, activeSources, GENRE_HINTS, 'Alt Pop')
   const mood = activeBlueprint?.mood ?? project.mood ?? getMostCommonHint(activeItems, activeSources, MOOD_HINTS, 'Reflective')
   const energy = activeBlueprint?.energy ?? getMostCommonHint(activeItems, activeSources, ENERGY_HINTS, 'Medium')
@@ -319,6 +450,8 @@ export function createInterpretationSnapshot({
   )
   const lyricTheme =
     activeBlueprint?.lyricTheme ??
+    extractStructuredLyricSection(lyricSource?.text, 'Chorus')?.slice(0, 80) ??
+    extractStructuredLyricSection(lyricSource?.text, 'Verse')?.slice(0, 80) ??
     lyricSource?.text.slice(0, 80)
   const melodyDirection =
     activeBlueprint?.melodyDirection ??
@@ -327,7 +460,11 @@ export function createInterpretationSnapshot({
       : 'Build a singable top-line over the harmonic bed')
   const instruments = buildInstrumentPlan(activeSources, activeBlueprint?.instruments)
   const durationSeconds = parseDurationToSeconds(targetDuration)
-  const structure = activeBlueprint?.structure ?? getDefaultStructure(durationSeconds)
+  const structure =
+    activeBlueprint?.structure ??
+    buildStructuredChordArrangement(activeSources, durationSeconds) ??
+    buildDetectedAudioChordArrangement(activeSources, durationSeconds) ??
+    getDefaultStructure(durationSeconds)
 
   const generationNotes = [
     activeSources.some((sourceInput) => sourceInput.type === 'remix_source')
@@ -345,11 +482,17 @@ export function createInterpretationSnapshot({
     activeSources.some((sourceInput) => sourceInput.type === 'chord_progression')
       ? 'Keep harmonic cadence close to the provided progression.'
       : undefined,
+    activeSources.some((sourceInput) => sourceInput.normalized?.keyChangeAfterBridge)
+      ? 'Lift the final chorus with a key change after the bridge.'
+      : undefined,
     activeSources.some((sourceInput) => sourceInput.type === 'lyrics')
       ? 'Leave space for intelligible lyrical delivery.'
       : undefined,
     activeSources.some((sourceInput) => sourceInput.type === 'riff_audio')
       ? 'Keep the riff prominent in intro and chorus sections.'
+      : undefined,
+    activeSources.some((sourceInput) => sourceInput.normalized?.detectedChordProgression?.length)
+      ? 'Respect the detected chord movement from the uploaded audio source.'
       : undefined,
   ].filter((directive): directive is string => Boolean(directive))
 
