@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import type { User } from 'firebase/auth'
 import type { AccountProfile } from '@/domain/account'
 import {
+  completeFirebaseRedirectSignIn,
   firebaseEnabled,
   loadFirebaseProfile,
   saveFirebaseProfile,
@@ -48,6 +49,13 @@ export const useAccountStore = create<AccountState>((set, get) => ({
     }
 
     set({ status: 'loading' })
+    void completeFirebaseRedirectSignIn().catch((error) => {
+      set((state) => ({
+        ...state,
+        errorMessage:
+          error instanceof Error ? error.message : 'Firebase redirect sign-in failed.',
+      }))
+    })
     unsubscribeAuth = subscribeToFirebaseAuth(async (user) => {
       if (!user) {
         set({
@@ -98,6 +106,9 @@ export const useAccountStore = create<AccountState>((set, get) => ({
     set({ status: 'loading', errorMessage: null })
     try {
       const user = await signInWithFirebaseGoogle()
+      if (!user) {
+        return
+      }
       const profile = await upsertFirebaseProfile(user)
       set({
         user,
