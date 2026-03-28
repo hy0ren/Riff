@@ -171,6 +171,43 @@ function buildInterpretationDocumentParts(sourceInputs: SourceInput[]): Array<Re
     })
 }
 
+function parseLyricThemeIntoSections(versionId: string, lyricTheme: string, vocalStyle?: string): LyricsSection[] {
+  const sectionRegex = /^(Verse|Chorus|Bridge|Pre-Chorus|Outro|Intro|Hook)\s*\d?\s*:/im
+  const blocks = lyricTheme.split(/\n\n+/)
+  const sections: LyricsSection[] = []
+  let fallbackIndex = 0
+
+  for (const block of blocks) {
+    const trimmed = block.trim()
+    if (!trimmed) continue
+
+    const headerMatch = trimmed.match(sectionRegex)
+    let label: string
+    let body: string
+
+    if (headerMatch) {
+      label = headerMatch[0].replace(/:$/, '').trim()
+      body = trimmed.slice(headerMatch[0].length).trim()
+    } else {
+      fallbackIndex++
+      label = fallbackIndex === 1 ? 'Verse' : `Section ${fallbackIndex}`
+      body = trimmed
+    }
+
+    const lines = body.split('\n').map((l) => l.trim()).filter(Boolean)
+    if (lines.length) {
+      sections.push({
+        id: `lyrics-${versionId}-${label.toLowerCase().replace(/\s+/g, '-')}-${sections.length}`,
+        label,
+        lines,
+        deliveryNotes: vocalStyle,
+      })
+    }
+  }
+
+  return sections
+}
+
 function buildFallbackLyricSections(
   request: GeminiTrackSummaryRequest,
 ): LyricsSection[] | undefined {
@@ -178,19 +215,32 @@ function buildFallbackLyricSections(
     return request.lyrics
   }
 
-  if (!request.blueprint.vocalsEnabled || !request.blueprint.lyricTheme) {
+  if (!request.blueprint.vocalsEnabled) {
     return undefined
   }
 
-  return [
-    {
-      id: `lyrics-${request.versionId}-chorus`,
-      label: 'Chorus',
-      lines: [request.blueprint.lyricTheme],
-      deliveryNotes: request.blueprint.vocalStyle,
-      theme: request.blueprint.lyricTheme,
-    },
-  ]
+  if (request.blueprint.lyricTheme && request.blueprint.lyricTheme.includes('\n')) {
+    const parsed = parseLyricThemeIntoSections(
+      request.versionId,
+      request.blueprint.lyricTheme,
+      request.blueprint.vocalStyle,
+    )
+    if (parsed.length) return parsed
+  }
+
+  if (request.blueprint.lyricTheme) {
+    return [
+      {
+        id: `lyrics-${request.versionId}-chorus`,
+        label: 'Chorus',
+        lines: [request.blueprint.lyricTheme],
+        deliveryNotes: request.blueprint.vocalStyle,
+        theme: request.blueprint.lyricTheme,
+      },
+    ]
+  }
+
+  return undefined
 }
 
 function buildFallbackChordSections(
@@ -429,6 +479,99 @@ export async function analyzeAudioSource(
   }
 }
 
+function buildLearnPackSystemInstruction(hasAudio: boolean, hasVocals: boolean): string {
+  const base = [
+    'You are the audio analysis and learn-pack layer for Riff. Return JSON only.',
+    'Your job is to deeply analyze a generated song and produce a comprehensive, accurate study guide.',
+  ]
+
+  if (hasAudio) {
+    base.push(
+      'CRITICAL: Audio is attached. You MUST listen to the full audio carefully before responding.',
+      'Base ALL timing, chord, section, and lyric data on what you actually hear in the audio — do NOT guess from the blueprint alone.',
+    )
+  }
+
+  if (hasVocals) {
+    base.push(
+      'LYRICS: Transcribe EVERY sung lyric word-for-word from the audio. Include every verse, chorus, pre-chorus, bridge, and outro vocal.',
+      'Organize lyrics into lyricSections with one entry per song section. Each section.lines array must contain every line sung in that section — not a summary or cue, but the complete text.',
+      'If a word is unclear, write your best phonetic guess in [brackets]. Never omit lines.',
+    )
+  } else {
+    base.push(
+      'This is an instrumental track. Do NOT invent lyrics. Leave lyricSections empty or omit it.',
+    )
+  }
+
+  base.push(
+    'CHORDS: Identify the chord progression for each section from the audio. Use standard chord names (e.g. Cm, F, Ab, Eb). Each chordSection must have accurate startTime (seconds), duration (seconds), and chords array.',
+    'STRUCTURE: Detect every distinct section (intro, verse, pre-chorus, chorus, bridge, outro, etc.). Provide accurate startTime and duration for each by listening to the audio transitions.',
+    'SECTION GUIDES: For each section, provide a unique "focus" tip and "memoryCue" tailored to that specific section. Never duplicate text between sections.',
+    'TIMING: All startTime and duration values must be in seconds. Sections must be continuous — each section starts where the previous one ends. The last section must end at or near the total track duration.',
+    'Return the result as a single JSON object matching the requested schema.',
+  )
+
+  return base.join('\n')
+}
+
+function buildLearnPackPrompt(request: GeminiTrackSummaryRequest, hasAudio: boolean): string {
+  const lines: string[] = [
+    'Analyze this generated song and build a complete learn pack.',
+    '',
+    `Project: ${request.projectTitle ?? request.projectId}`,
+    `Version: ${request.versionName}`,
+    `Key: ${request.blueprint.key} ${request.blueprint.mode}`,
+    `Tempo: ${request.blueprint.bpm} BPM`,
+    `Genre: ${request.blueprint.genre}`,
+    `Vocals: ${request.blueprint.vocalsEnabled ? 'Yes' : 'Instrumental'}`,
+  ]
+
+  if (request.blueprint.vocalsEnabled && request.blueprint.vocalStyle) {
+    lines.push(`Vocal style: ${request.blueprint.vocalStyle}`)
+  }
+  if (request.blueprint.lyricTheme) {
+    lines.push(`Lyric theme hint: ${request.blueprint.lyricTheme}`)
+  }
+  if (request.blueprint.targetDuration) {
+    lines.push(`Target duration: ${request.blueprint.targetDuration}`)
+  }
+  if (request.notes) {
+    lines.push(`Generation notes: ${request.notes}`)
+  }
+
+  if (request.structure?.length) {
+    lines.push('', 'Blueprint structure (use as a starting hint, but trust what you HEAR in the audio):')
+    for (const s of request.structure) {
+      lines.push(`  ${s.label}: ${s.startTime}s, ${s.duration}s, chords=[${s.chords.join(', ')}]`)
+    }
+  }
+
+  if (request.lyrics?.length) {
+    lines.push('', 'Known lyrics from generation (verify against audio, correct if different):')
+    for (const section of request.lyrics) {
+      lines.push(`  [${section.label}]`)
+      for (const line of section.lines) {
+        lines.push(`    ${line}`)
+      }
+    }
+  }
+
+  if (hasAudio) {
+    lines.push(
+      '',
+      'Audio is attached below. Listen to the FULL track and:',
+      '1. Transcribe ALL lyrics word-for-word into lyricSections (every line, every section)',
+      '2. Detect the actual chord progression per section into chordSections',
+      '3. Identify section boundaries with accurate timestamps into chordSections',
+      '4. Create sectionGuides with unique focus/memoryCue for each section',
+      '5. Write learningNotes with 3-5 practical tips for learning this specific song',
+    )
+  }
+
+  return lines.join('\n')
+}
+
 export async function summarizeTrackVersion(
   request: GeminiTrackSummaryRequest,
 ): Promise<GeminiTrackSummaryResult> {
@@ -436,6 +579,7 @@ export async function summarizeTrackVersion(
   const audioInlineData = request.audioDataUrl
     ? dataUrlToInlineData(request.audioDataUrl)
     : null
+  const hasVocals = request.blueprint.vocalsEnabled
 
   try {
     const result = await callGeminiJson<{
@@ -448,16 +592,14 @@ export async function summarizeTrackVersion(
       sectionGuides?: LearnSectionGuide[]
       practiceChecklist?: string[]
     }>({
-      systemInstruction:
-        'You are the project explanation and learn-pack layer for Riff. Return JSON only. Given a generated song, create a learnable study guide with chord sections, lyric sections, section-by-section practice cues, and concise memory aids. If vocals are absent, do not invent lyrics. Preserve useful musical names when possible and make the result easy to practice.',
-      prompt: `Build a learn pack for this generated track version.\n${toJsonPrompt({
-        ...request,
-        audioDataUrl: audioInlineData ? '[inline-audio-attached]' : undefined,
-      })}`,
+      systemInstruction: buildLearnPackSystemInstruction(Boolean(audioInlineData), hasVocals),
+      prompt: buildLearnPackPrompt(request, Boolean(audioInlineData)),
       userParts: audioInlineData
         ? [
             {
-              text: 'Analyze this generated song audio and turn it into a practice-ready guide with lyrics when discernible and chord sections that align with the arrangement.',
+              text: hasVocals
+                ? 'Listen to the full song. Transcribe every lyric line word-for-word. Detect all chord changes and section boundaries with accurate timestamps.'
+                : 'Listen to the full instrumental. Detect all chord changes, melodic themes, and section boundaries with accurate timestamps.',
             },
             { inlineData: audioInlineData },
           ]

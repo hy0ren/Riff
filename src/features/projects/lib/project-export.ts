@@ -28,7 +28,6 @@ export async function exportLatestProjectVersion(
   version: ProjectVersion,
 ): Promise<void> {
   const exportPrefs = useSettingsStore.getState().exports
-  const safeBaseName = `${project.title}-${version.name}`.replace(/\s+/g, '-').toLowerCase()
   const versionsToExport = exportPrefs.includeAllVersions ? project.versions : [version]
 
   for (const candidateVersion of versionsToExport) {

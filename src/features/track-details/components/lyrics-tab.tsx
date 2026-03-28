@@ -12,7 +12,7 @@ function findSectionTiming(
   structure: TrackStructureNode[] | undefined,
 ): TrackStructureNode | undefined {
   return structure?.find(
-    (section) => section.label.toLowerCase() === label.toLowerCase(),
+    (section) => section.label?.toLowerCase() === label?.toLowerCase(),
   )
 }
 
@@ -21,7 +21,12 @@ function formatTimestamp(seconds: number): string {
 }
 
 export function LyricsTab({ lyrics, structure, onExport }: LyricsTabProps) {
-  if (!lyrics?.length) {
+  const safeLyrics = lyrics?.filter((s) => s.label && s.lines?.length).map((s) => ({
+    ...s,
+    lines: s.lines ?? [],
+  }))
+
+  if (!safeLyrics?.length) {
     return <div className="p-8 text-center text-[var(--riff-text-muted)]">No vocal or lyric data for this version.</div>
   }
 
@@ -41,7 +46,7 @@ export function LyricsTab({ lyrics, structure, onExport }: LyricsTabProps) {
       </div>
 
       <div className="flex flex-col gap-8">
-        {lyrics.map((lyric, idx) => {
+        {safeLyrics.map((lyric, idx) => {
           const timing = findSectionTiming(lyric.label, structure)
           return (
           <div key={idx} className="flex gap-12 group">

@@ -48,6 +48,11 @@ export function LearnPage() {
   const [isGeneratingGuide, setIsGeneratingGuide] = useState(false)
   const [guideError, setGuideError] = useState<string | null>(null)
   const autoRequestedVersionId = useRef<string | null>(null)
+  const isGeneratingRef = useRef(false)
+  const activeVersionRef = useRef(activeVersion)
+  activeVersionRef.current = activeVersion
+  const activeBlueprintRef = useRef(activeBlueprint)
+  activeBlueprintRef.current = activeBlueprint
 
   useProjectRouteContext({
     projectId: activeProject.id,
@@ -56,10 +61,13 @@ export function LearnPage() {
   })
 
   const buildLearnGuide = useCallback(async () => {
-    if (!activeVersion || !activeBlueprint || isGeneratingGuide) {
+    const version = activeVersionRef.current
+    const blueprint = activeBlueprintRef.current
+    if (!version || !blueprint || isGeneratingRef.current) {
       return
     }
 
+    isGeneratingRef.current = true
     setIsGeneratingGuide(true)
     setGuideError(null)
 
@@ -67,26 +75,26 @@ export function LearnPage() {
       const insight = await summarizeTrackVersion({
         projectId: activeProject.id,
         projectTitle: activeProject.title,
-        versionId: activeVersion.id,
-        blueprint: activeBlueprint,
-        versionName: activeVersion.name,
-        notes: activeVersion.notes,
-        audioDataUrl: activeVersion.audioUrl,
-        structure: activeVersion.structure,
-        lyrics: activeVersion.lyrics,
+        versionId: version.id,
+        blueprint,
+        versionName: version.name,
+        notes: version.notes,
+        audioDataUrl: version.audioUrl,
+        structure: version.structure,
+        lyrics: version.lyrics,
       })
 
       updateProject(activeProject.id, (project) => ({
         ...project,
-        versions: project.versions.map((version) =>
-          version.id === activeVersion.id
+        versions: project.versions.map((v) =>
+          v.id === version.id
             ? {
-                ...version,
+                ...v,
                 insight,
-                structure: insight.chordSections ?? version.structure,
-                lyrics: insight.lyricSections ?? version.lyrics,
+                structure: insight.chordSections ?? v.structure,
+                lyrics: insight.lyricSections ?? v.lyrics,
               }
-            : version,
+            : v,
         ),
       }))
     } catch (error) {
@@ -96,9 +104,10 @@ export function LearnPage() {
           : 'Learn guide generation failed. Try again in a moment.',
       )
     } finally {
+      isGeneratingRef.current = false
       setIsGeneratingGuide(false)
     }
-  }, [activeBlueprint, activeProject.id, activeProject.title, activeVersion, isGeneratingGuide, updateProject])
+  }, [activeProject.id, activeProject.title, updateProject])
 
   useEffect(() => {
     if (!activeVersion || !activeBlueprint || !activeVersion.audioUrl) {
@@ -117,11 +126,7 @@ export function LearnPage() {
 
     autoRequestedVersionId.current = activeVersion.id
     void buildLearnGuide()
-  }, [
-    activeBlueprint,
-    activeVersion,
-    buildLearnGuide,
-  ])
+  }, [activeVersion, activeBlueprint, buildLearnGuide])
 
   if (!activeProject || !activeProject.versions) {
     return <Navigate to="/" replace />
@@ -137,10 +142,23 @@ export function LearnPage() {
 
   const insight = activeVersion.insight
   const learningNotes = insight?.learningNotes ?? insight?.practiceNotes ?? []
-  const chordSections = insight?.chordSections ?? activeVersion.structure ?? []
-  const lyricSections = insight?.lyricSections ?? activeVersion.lyrics ?? []
+  const chordSections = (insight?.chordSections ?? activeVersion.structure ?? []).map((s) => ({
+    ...s,
+    chords: s.chords ?? [],
+  }))
+  const lyricSections = (insight?.lyricSections ?? activeVersion.lyrics ?? []).map((s) => ({
+    ...s,
+    lines: s.lines ?? [],
+  }))
+  const geminiGuides = insight?.sectionGuides?.length
+    ? insight.sectionGuides.map((g) => ({
+        ...g,
+        chords: g.chords ?? [],
+        lyricCue: g.lyricCue ?? undefined,
+      }))
+    : null
   const rawSectionGuides =
-    insight?.sectionGuides ??
+    geminiGuides ??
     chordSections.map((section, index) => {
       const matchingLyrics = lyricSections.find(
         (candidate) => candidate.label.toLowerCase() === section.label.toLowerCase(),
@@ -428,80 +446,37 @@ export function LearnPage() {
           <div className="rounded-2xl border border-[var(--riff-surface-highest)] bg-[var(--riff-surface-low)] p-6">
             <div className="mb-5 flex items-center gap-2 text-[var(--riff-text-primary)]">
               <Sparkles className="h-5 w-5 opacity-70" />
-              <h2 className="font-display text-lg font-semibold">Lyrics and Chord Sheet</h2>
+              <h2 className="font-display text-lg font-semibold">Chord Map</h2>
             </div>
-
-            <div className="grid gap-5 lg:grid-cols-2">
-              <div className="rounded-xl bg-[var(--riff-surface-mid)] p-4">
-                <h3 className="text-sm font-semibold text-[var(--riff-text-primary)]">Chord Map</h3>
-                <div className="mt-4 space-y-3">
-                  {chordSections.length ? (
-                    chordSections.map((section) => (
-                      <div key={section.id} className="rounded-lg bg-[var(--riff-surface)] p-3">
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--riff-text-secondary)]">
-                            {section.label}
-                          </p>
-                          <span className="text-[10px] text-[var(--riff-text-muted)]">
-                            {formatDuration(section.startTime)} – {formatDuration(section.startTime + section.duration)}
-                          </span>
-                        </div>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {section.chords.map((chord) => (
-                            <span
-                              key={`${section.id}-sheet-${chord}`}
-                              className="rounded-md border border-[var(--riff-surface-highest)] bg-[var(--riff-surface-low)] px-2 py-1 text-xs font-semibold text-[var(--riff-text-primary)]"
-                            >
-                              {chord}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-[var(--riff-text-muted)]">
-                      No chord sections yet. Generate the learn pack or regenerate the song summary.
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div className="rounded-xl bg-[var(--riff-surface-mid)] p-4">
-                <h3 className="text-sm font-semibold text-[var(--riff-text-primary)]">Lyric Sheet</h3>
-                <div className="mt-4 space-y-4">
-                  {lyricSections.length ? (
-                    lyricSections.map((section) => (
-                      <div key={section.id} className="rounded-lg bg-[var(--riff-surface)] p-3">
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--riff-text-secondary)]">
-                            {section.label}
-                          </p>
-                          {section.deliveryNotes ? (
-                            <Badge variant="outline" className="text-[10px]">
-                              {section.deliveryNotes}
-                            </Badge>
-                          ) : null}
-                        </div>
-                        <div className="mt-2 space-y-1.5">
-                          {section.lines.map((line) => (
-                            <p
-                              key={`${section.id}-${line}`}
-                              className="text-sm leading-relaxed text-[var(--riff-text-secondary)]"
-                            >
-                              {line}
-                            </p>
-                          ))}
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-[var(--riff-text-muted)]">
-                      No lyric sheet is available for this version yet. Instrumental versions will
-                      intentionally stay lyric-free.
-                    </p>
-                  )}
-                </div>
-              </div>
+            <div className="space-y-3">
+              {chordSections.length ? (
+                chordSections.map((section) => (
+                  <div key={section.id} className="rounded-lg bg-[var(--riff-surface-mid)] p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--riff-text-secondary)]">
+                        {section.label}
+                      </p>
+                      <span className="text-[10px] text-[var(--riff-text-muted)]">
+                        {formatDuration(section.startTime)} – {formatDuration(section.startTime + section.duration)}
+                      </span>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {section.chords.map((chord) => (
+                        <span
+                          key={`${section.id}-sheet-${chord}`}
+                          className="rounded-md border border-[var(--riff-surface-highest)] bg-[var(--riff-surface-low)] px-2 py-1 text-xs font-semibold text-[var(--riff-text-primary)]"
+                        >
+                          {chord}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-[var(--riff-text-muted)]">
+                  No chord sections yet. Generate the learn pack or regenerate the song summary.
+                </p>
+              )}
             </div>
 
             {insight?.arrangementSummary ? (
@@ -517,6 +492,52 @@ export function LearnPage() {
                 </div>
               </>
             ) : null}
+          </div>
+
+          <div className="rounded-2xl border border-[var(--riff-surface-highest)] bg-[var(--riff-surface-low)] p-6">
+            <div className="mb-5 flex items-center gap-2 text-[var(--riff-text-primary)]">
+              <BookOpen className="h-5 w-5 opacity-70" />
+              <h2 className="font-display text-lg font-semibold">Full Lyrics</h2>
+            </div>
+            {lyricSections.length ? (
+              <div className="space-y-5">
+                {lyricSections.map((section) => (
+                  <div key={section.id} className="rounded-xl bg-[var(--riff-surface-mid)] p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--riff-accent-light)]">
+                        {section.label}
+                      </p>
+                      {section.deliveryNotes ? (
+                        <Badge variant="outline" className="text-[10px]">
+                          {section.deliveryNotes}
+                        </Badge>
+                      ) : null}
+                    </div>
+                    <div className="mt-3 space-y-1.5">
+                      {section.lines.map((line, lineIdx) => (
+                        <p
+                          key={`${section.id}-line-${lineIdx}`}
+                          className="text-sm leading-relaxed text-[var(--riff-text-secondary)]"
+                        >
+                          {line}
+                        </p>
+                      ))}
+                    </div>
+                    {section.theme ? (
+                      <p className="mt-3 text-xs text-[var(--riff-text-muted)]">
+                        Theme: {section.theme}
+                      </p>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-[var(--riff-text-muted)]">
+                {activeProject.blueprint?.vocalsEnabled === false
+                  ? 'This is an instrumental version — no lyrics to display.'
+                  : 'No lyrics transcribed yet. Generate the learn pack to have Gemini transcribe the full lyrics from the audio.'}
+              </p>
+            )}
           </div>
         </section>
       </div>

@@ -2,6 +2,7 @@ import { PageFrame } from '@/components/layout/page-frame'
 import { Button } from '@/components/ui/button'
 import { useCallback, useRef, useState } from 'react'
 import { FolderOpen, RefreshCw } from 'lucide-react'
+import { openExportFolder } from '@/lib/platform/fs-commands'
 import { SettingsNav } from './components/settings-nav'
 import { AccountSection } from './components/account-section'
 import { AppearanceSection } from './components/appearance-section'
@@ -10,12 +11,13 @@ import { CreationSection } from './components/creation-section'
 import { ExportPrefsSection } from './components/export-prefs-section'
 import { StorageSection } from './components/storage-section'
 import { IntegrationsSection } from './components/integrations-section'
-import { AudioSection } from './components/audio-section'
 import { AdvancedSection } from './components/advanced-section'
+import { useSettingsStore } from './store/use-settings-store'
 
 export function SettingsPage() {
   const [activeSection, setActiveSection] = useState('account')
   const scrollRef = useRef<HTMLDivElement>(null)
+  const resetToDefaults = useSettingsStore((state) => state.resetToDefaults)
 
   const handleNavigate = useCallback((id: string) => {
     setActiveSection(id)
@@ -31,11 +33,21 @@ export function SettingsPage() {
       subtitle="Configuration, integrations, and preferences"
       actions={
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="h-8 gap-1.5 rounded-lg px-3 text-[12px]">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1.5 rounded-lg px-3 text-[12px]"
+            onClick={() => resetToDefaults()}
+          >
             <RefreshCw className="h-3.5 w-3.5" /> Reset to Defaults
           </Button>
-          <Button variant="outline" size="sm" className="h-8 gap-1.5 rounded-lg px-3 text-[12px]">
-            <FolderOpen className="h-3.5 w-3.5" /> Open App Folder
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1.5 rounded-lg px-3 text-[12px]"
+            onClick={() => void openExportFolder()}
+          >
+            <FolderOpen className="h-3.5 w-3.5" /> Open Export Folder
           </Button>
         </div>
       }
@@ -55,7 +67,6 @@ export function SettingsPage() {
           <ExportPrefsSection />
           <StorageSection />
           <IntegrationsSection />
-          <AudioSection />
           <AdvancedSection />
         </div>
       </div>

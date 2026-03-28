@@ -39,10 +39,12 @@ function inferMotifCount(sectionGuides: LearnSectionGuide[] | undefined): number
     return 1
   }
 
+  const labels = sectionGuides
+    .map((section) => section.label?.toLowerCase())
+    .filter((label): label is string => Boolean(label))
+
   const repeatedLabels = new Set(
-    sectionGuides
-      .map((section) => section.label.toLowerCase())
-      .filter((label, index, array) => array.indexOf(label) !== index),
+    labels.filter((label, index, array) => array.indexOf(label) !== index),
   )
 
   return Math.max(1, repeatedLabels.size || Math.min(3, sectionGuides.length))
@@ -57,16 +59,16 @@ export function MelodyTab({
   onExport,
 }: MelodyTabProps) {
   const guides =
-    sectionGuides ??
+    sectionGuides?.map((g) => ({ ...g, chords: g.chords ?? [], label: g.label ?? '' })) ??
     structure?.map((section) => ({
       id: `${version.id}-${section.id}`,
-      label: section.label,
+      label: section.label ?? '',
       startTime: section.startTime,
       duration: section.duration,
-      chords: section.chords,
-      lyricCue: lyrics?.find((candidate) => candidate.label.toLowerCase() === section.label.toLowerCase())?.lines.slice(0, 2),
-      focus: `Keep the ${section.label.toLowerCase()} melodic shape steady over the ${section.chords[0] ?? 'main'} harmony.`,
-      memoryCue: lyrics?.find((candidate) => candidate.label.toLowerCase() === section.label.toLowerCase())?.lines[0],
+      chords: section.chords ?? [],
+      lyricCue: lyrics?.find((candidate) => candidate.label?.toLowerCase() === section.label?.toLowerCase())?.lines.slice(0, 2),
+      focus: `Keep the ${(section.label ?? 'section').toLowerCase()} melodic shape steady over the ${section.chords?.[0] ?? 'main'} harmony.`,
+      memoryCue: lyrics?.find((candidate) => candidate.label?.toLowerCase() === section.label?.toLowerCase())?.lines[0],
     }))
 
   if (!guides?.length && !blueprint?.melodyDirection) {
@@ -139,7 +141,7 @@ export function MelodyTab({
                 <div className="rounded-lg bg-[var(--riff-surface)] border border-[var(--riff-surface-highest)] p-4">
                   <p className="text-[10px] uppercase tracking-[0.14em] text-[var(--riff-text-muted)]">Chord Bed</p>
                   <p className="mt-2 text-sm text-[var(--riff-text-primary)]">
-                    {guide.chords.length ? guide.chords.join('  ') : 'No chord bed captured for this section.'}
+                    {guide.chords?.length ? guide.chords.join('  ') : 'No chord bed captured for this section.'}
                   </p>
                 </div>
                 <div className="rounded-lg bg-[var(--riff-surface)] border border-[var(--riff-surface-highest)] p-4">

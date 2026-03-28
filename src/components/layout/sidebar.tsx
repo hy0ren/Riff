@@ -36,7 +36,6 @@ const utilityNav: NavItem[] = [
   { label: 'Settings', path: '/settings', icon: Settings },
 ]
 
-function SidebarNavItem({ item }: { item: NavItem }) {
 function SidebarNavItem({ item, compact }: { item: NavItem; compact: boolean }) {
   const location = useLocation()
   const isActive = item.path === '/'
@@ -64,11 +63,15 @@ function SidebarNavItem({ item, compact }: { item: NavItem; compact: boolean }) 
               style={{ background: 'var(--riff-accent)' }}
             />
           )}
-
-          <item.icon className={cn(
-            cn('shrink-0 transition-colors', compact ? 'h-4 w-4' : 'h-[18px] w-[18px]'),
-            isActive ? 'text-[var(--riff-accent-light)]' : 'text-[var(--riff-text-muted)] group-hover:text-[var(--riff-text-secondary)]'
-          )} />
+          <item.icon
+            className={cn(
+              'shrink-0 transition-colors',
+              compact ? 'h-4 w-4' : 'h-[18px] w-[18px]',
+              isActive
+                ? 'text-[var(--riff-accent-light)]'
+                : 'text-[var(--riff-text-muted)] group-hover:text-[var(--riff-text-secondary)]',
+            )}
+          />
 
           <span>{item.label}</span>
         </NavLink>

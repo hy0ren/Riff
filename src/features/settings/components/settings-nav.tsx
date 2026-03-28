@@ -8,7 +8,6 @@ import {
   SlidersHorizontal,
   Sparkles,
   User,
-  Volume2,
 } from 'lucide-react'
 
 const NAV_ITEMS = [
@@ -19,7 +18,6 @@ const NAV_ITEMS = [
   { id: 'exports', label: 'Exports', icon: Download },
   { id: 'storage', label: 'Storage', icon: HardDrive },
   { id: 'integrations', label: 'Integrations', icon: Plug },
-  { id: 'audio', label: 'Audio', icon: Volume2 },
   { id: 'advanced', label: 'Advanced', icon: SlidersHorizontal },
 ] as const
 
