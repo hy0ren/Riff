@@ -1,7 +1,11 @@
 import type { Blueprint } from './blueprint'
+import type { BlueprintDraft } from './blueprint-draft'
 import type { ExportBundle } from './exports'
+import type { GenerationRun } from './generation-run'
+import type { InterpretationSnapshot } from './interpretation'
 import type { PracticeSession } from './practice-session'
 import type { SourceInput } from './source-input'
+import type { SourceSet } from './source-set'
 import type { TrackVersion } from './track-version'
 
 export type ProjectStatus = 'draft' | 'generating' | 'finished' | 'archived'
@@ -51,8 +55,14 @@ export interface Project {
   versionCount: number
   coverUrl?: string
   sourceInputs?: SourceInput[]
+  sourceSets?: SourceSet[]
+  interpretations?: InterpretationSnapshot[]
   blueprints?: Blueprint[]
   activeBlueprintId?: string
+  activeSourceSetId?: string
+  activeInterpretationId?: string
+  workingBlueprintDraft?: BlueprintDraft
+  generationRuns?: GenerationRun[]
   versions?: TrackVersion[]
   activeVersionId?: string
   practiceSessions?: PracticeSession[]
@@ -79,11 +89,17 @@ export interface Project {
 export type ProjectVersion = TrackVersion
 export type PersistedProject = Project & {
   sourceInputs: SourceInput[]
+  sourceSets: SourceSet[]
+  interpretations: InterpretationSnapshot[]
   blueprints: Blueprint[]
+  generationRuns: GenerationRun[]
+  workingBlueprintDraft: BlueprintDraft
   versions: TrackVersion[]
   practiceSessions: PracticeSession[]
   exportBundles: ExportBundle[]
   library: ProjectLibraryState
   activeBlueprintId?: string
+  activeSourceSetId?: string
+  activeInterpretationId?: string
   activeVersionId?: string
 }

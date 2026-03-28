@@ -7,14 +7,18 @@ import { ChordsTab } from './components/chords-tab'
 import { MelodyTab } from './components/melody-tab'
 import { LyricsTab } from './components/lyrics-tab'
 import { ExportsTab } from './components/exports-tab'
-import { findProjectById, getProjectVersion, resolveProject } from '@/features/projects/lib/project-selectors'
+import {
+  getProjectVersion,
+  useMatchedProject,
+  useResolvedProject,
+} from '@/features/projects/lib/project-selectors'
 import { projectRoutes } from '@/features/projects/lib/project-routes'
 import { useProjectRouteContext } from '@/features/projects/hooks/use-project-route-context'
 
 export function TrackDetailsPage() {
   const { projectId, versionId } = useParams()
-  const matchedProject = findProjectById(projectId)
-  const activeProject = resolveProject(projectId)
+  const matchedProject = useMatchedProject(projectId)
+  const activeProject = useResolvedProject(projectId)
   const activeVersion = activeProject.versions
     ? getProjectVersion(activeProject, versionId)
     : undefined

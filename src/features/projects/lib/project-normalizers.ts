@@ -1,9 +1,31 @@
 import type { Blueprint } from '@/domain/blueprint'
+import type { BlueprintDraft } from '@/domain/blueprint-draft'
 import type { ExportBundle } from '@/domain/exports'
+import type { GenerationRun } from '@/domain/generation-run'
+import type { InterpretationSnapshot } from '@/domain/interpretation'
 import type { PracticeSession } from '@/domain/practice-session'
-import type { PersistedProject, Project, ProjectBlueprint, ProjectLibraryState, SourceType } from '@/domain/project'
+import type {
+  PersistedProject,
+  Project,
+  ProjectBlueprint,
+  ProjectLibraryState,
+  SourceType,
+} from '@/domain/project'
 import type { SourceInput } from '@/domain/source-input'
+import type { SourceSet } from '@/domain/source-set'
 import type { TrackVersion } from '@/domain/track-version'
+import { createBlueprintDraft, commitBlueprintDraft } from '@/lib/studio-pipeline/blueprint-draft'
+import {
+  createGenerationRun,
+  createMockTrackVersion,
+  updateGenerationRunStatus,
+} from '@/lib/studio-pipeline/generation'
+import { createStudioId } from '@/lib/studio-pipeline/ids'
+import { createInterpretationSnapshot } from '@/lib/studio-pipeline/interpretation'
+import {
+  createSourceSetFromInputs,
+  normalizeStudioSourceInput,
+} from '@/lib/studio-pipeline/source-assembly'
 
 function createIsoTimestamp(offsetMs = 0): string {
   return new Date(Date.now() + offsetMs).toISOString()
@@ -11,7 +33,7 @@ function createIsoTimestamp(offsetMs = 0): string {
 
 function createSourceInputs(project: Project): SourceInput[] {
   if (project.sourceInputs?.length) {
-    return project.sourceInputs
+    return project.sourceInputs.map(normalizeStudioSourceInput)
   }
 
   const createdAt = project.createdAt ?? createIsoTimestamp()
@@ -20,7 +42,7 @@ function createSourceInputs(project: Project): SourceInput[] {
   switch (project.sourceType) {
     case 'hum':
       return [
-        {
+        normalizeStudioSourceInput({
           id: `${project.id}-src-hum`,
           projectId: project.id,
           type: 'hum',
@@ -33,11 +55,11 @@ function createSourceInputs(project: Project): SourceInput[] {
           isReference: false,
           interpretationStatus: 'interpreted',
           durationSeconds: 12,
-        },
+        }),
       ]
     case 'riff':
       return [
-        {
+        normalizeStudioSourceInput({
           id: `${project.id}-src-riff`,
           projectId: project.id,
           type: 'riff_audio',
@@ -50,11 +72,11 @@ function createSourceInputs(project: Project): SourceInput[] {
           isReference: false,
           interpretationStatus: 'interpreted',
           durationSeconds: 24,
-        },
+        }),
       ]
     case 'chords':
       return [
-        {
+        normalizeStudioSourceInput({
           id: `${project.id}-src-chords`,
           projectId: project.id,
           type: 'chord_progression',
@@ -67,11 +89,11 @@ function createSourceInputs(project: Project): SourceInput[] {
           isReference: false,
           interpretationStatus: 'attached',
           text: project.description ?? 'Cm7 - Fm9',
-        },
+        }),
       ]
     case 'sheet_music':
       return [
-        {
+        normalizeStudioSourceInput({
           id: `${project.id}-src-sheet`,
           projectId: project.id,
           type: 'sheet_music',
@@ -85,11 +107,11 @@ function createSourceInputs(project: Project): SourceInput[] {
           interpretationStatus: 'interpreted',
           fileName: `${project.title}.pdf`,
           fileFormat: 'pdf',
-        },
+        }),
       ]
     case 'lyrics':
       return [
-        {
+        normalizeStudioSourceInput({
           id: `${project.id}-src-lyrics`,
           projectId: project.id,
           type: 'lyrics',
@@ -102,11 +124,11 @@ function createSourceInputs(project: Project): SourceInput[] {
           isReference: false,
           interpretationStatus: 'attached',
           text: project.description ?? 'Untitled lyric concept',
-        },
+        }),
       ]
     case 'spotify_track':
       return [
-        {
+        normalizeStudioSourceInput({
           id: `${project.id}-src-spotify-track`,
           projectId: project.id,
           type: 'spotify_track_reference',
@@ -120,11 +142,12 @@ function createSourceInputs(project: Project): SourceInput[] {
           interpretationStatus: 'attached',
           spotifyUri: `spotify:track:${project.id}`,
           artistName: 'Spotify Reference',
-        },
+          providerTrackName: project.title,
+        }),
       ]
     case 'spotify_playlist':
       return [
-        {
+        normalizeStudioSourceInput({
           id: `${project.id}-src-spotify-playlist`,
           projectId: project.id,
           type: 'spotify_playlist_reference',
@@ -138,11 +161,11 @@ function createSourceInputs(project: Project): SourceInput[] {
           interpretationStatus: 'attached',
           spotifyUri: `spotify:playlist:${project.id}`,
           playlistName: project.collection ?? `${project.title} References`,
-        },
+        }),
       ]
     case 'remix':
       return [
-        {
+        normalizeStudioSourceInput({
           id: `${project.id}-src-remix`,
           projectId: project.id,
           type: 'remix_source',
@@ -154,11 +177,14 @@ function createSourceInputs(project: Project): SourceInput[] {
           provenance: 'project',
           isReference: false,
           interpretationStatus: 'attached',
-        },
+          sourceProjectId: project.id,
+          sourceVersionId: project.versions?.[0]?.id,
+          inheritsEditableAudio: true,
+        }),
       ]
     case 'mixed':
       return [
-        {
+        normalizeStudioSourceInput({
           id: `${project.id}-src-hum`,
           projectId: project.id,
           type: 'hum',
@@ -171,8 +197,8 @@ function createSourceInputs(project: Project): SourceInput[] {
           isReference: false,
           interpretationStatus: 'interpreted',
           durationSeconds: 12,
-        },
-        {
+        }),
+        normalizeStudioSourceInput({
           id: `${project.id}-src-spotify-track`,
           projectId: project.id,
           type: 'spotify_track_reference',
@@ -186,7 +212,8 @@ function createSourceInputs(project: Project): SourceInput[] {
           interpretationStatus: 'attached',
           spotifyUri: `spotify:track:${project.id}:reference`,
           artistName: 'Reference Artist',
-        },
+          providerTrackName: project.title,
+        }),
       ]
     default:
       return []
@@ -215,12 +242,99 @@ function createBlueprints(project: Project, sourceInputs: SourceInput[]): Bluepr
       revision: draftBlueprint.revision ?? 1,
       createdAt: draftBlueprint.createdAt ?? createdAt,
       updatedAt: draftBlueprint.updatedAt ?? updatedAt,
-      sourceInputIds: draftBlueprint.sourceInputIds ?? sourceInputs.map((sourceInput) => sourceInput.id),
+      sourceInputIds:
+        draftBlueprint.sourceInputIds ?? sourceInputs.map((sourceInput) => sourceInput.id),
     },
   ]
 }
 
-function createTrackVersions(project: Project, blueprints: Blueprint[]): TrackVersion[] {
+function createSourceSets(project: Project, sourceInputs: SourceInput[]): SourceSet[] {
+  if (project.sourceSets?.length) {
+    return project.sourceSets.map((sourceSet) =>
+      createSourceSetFromInputs(project.id, sourceInputs, sourceSet),
+    )
+  }
+
+  if (!sourceInputs.length) {
+    return []
+  }
+
+  return [createSourceSetFromInputs(project.id, sourceInputs)]
+}
+
+function createInterpretations(
+  project: Project,
+  sourceSet: SourceSet | undefined,
+  sourceInputs: SourceInput[],
+  activeBlueprint?: Blueprint,
+): InterpretationSnapshot[] {
+  if (!sourceSet) {
+    return []
+  }
+
+  const activeInterpretation = project.interpretations?.find(
+    (interpretation) => interpretation.id === project.activeInterpretationId,
+  )
+
+  if (project.interpretations?.length) {
+    return [
+      createInterpretationSnapshot({
+        project,
+        sourceSet,
+        sourceInputs,
+        activeBlueprint,
+        existingInterpretation: activeInterpretation ?? project.interpretations[project.interpretations.length - 1],
+      }),
+      ...project.interpretations.filter(
+        (interpretation) => interpretation.id !== activeInterpretation?.id,
+      ),
+    ]
+  }
+
+  return [
+    createInterpretationSnapshot({
+      project,
+      sourceSet,
+      sourceInputs,
+      activeBlueprint,
+    }),
+  ]
+}
+
+function createWorkingBlueprintDraft(
+  project: Project,
+  sourceSet: SourceSet | undefined,
+  interpretation: InterpretationSnapshot | undefined,
+  activeBlueprint?: Blueprint,
+): BlueprintDraft {
+  return createBlueprintDraft({
+    projectId: project.id,
+    sourceSetId: sourceSet?.id ?? createStudioId('sourceset-empty'),
+    interpretation:
+      interpretation ??
+      {
+        id: createStudioId('interp'),
+        projectId: project.id,
+        sourceSetId: sourceSet?.id ?? '',
+        createdAt: createIsoTimestamp(),
+        updatedAt: createIsoTimestamp(),
+        summary: 'No interpretation available.',
+        sourceInputIds: [],
+        derivedBlueprint: activeBlueprint ?? {},
+        signals: [],
+        conflicts: [],
+      },
+    activeBlueprint,
+    existingDraft: project.workingBlueprintDraft,
+  })
+}
+
+function createTrackVersions(
+  project: Project,
+  blueprints: Blueprint[],
+  sourceSetId?: string,
+  interpretationId?: string,
+): TrackVersion[] {
   const versions = project.versions ?? []
   const fallbackBlueprintId = blueprints[0]?.id
 
@@ -229,6 +343,100 @@ function createTrackVersions(project: Project, blueprints: Blueprint[]): TrackVe
     projectId: project.id,
     kind: version.kind ?? 'base',
     sourceBlueprintId: version.sourceBlueprintId ?? fallbackBlueprintId,
+    sourceSetId: version.sourceSetId ?? sourceSetId,
+    interpretationId: version.interpretationId ?? interpretationId,
+  }))
+}
+
+function createSyntheticGenerationRuns(
+  project: Project,
+  versions: TrackVersion[],
+  sourceSet: SourceSet | undefined,
+  sourceInputs: SourceInput[],
+  interpretation: InterpretationSnapshot | undefined,
+  blueprints: Blueprint[],
+): GenerationRun[] {
+  if (!sourceSet || !interpretation) {
+    return []
+  }
+
+  return versions.map((version) => {
+    const blueprint =
+      blueprints.find((candidate) => candidate.id === version.sourceBlueprintId) ??
+      blueprints[blueprints.length - 1]
+
+    if (!blueprint) {
+      const placeholderBlueprint = commitBlueprintDraft({
+        projectId: project.id,
+        draft: createWorkingBlueprintDraft(project, sourceSet, interpretation),
+      }).blueprint
+      blueprints = [...blueprints, placeholderBlueprint]
+    }
+
+    const run = createGenerationRun({
+      project,
+      sourceSet,
+      sourceInputs,
+      interpretation,
+      blueprint: blueprint ?? blueprints[blueprints.length - 1],
+      kind: version.kind ?? 'base',
+      parentVersionId: version.parentVersionId,
+      modifiers: {
+        loadOnSuccess: version.isActive,
+        refinementPrompt: version.notes,
+      },
+    })
+
+    return updateGenerationRunStatus(run, 'succeeded', {
+      createdAt: version.timestamp,
+      updatedAt: version.timestamp,
+      startedAt: version.timestamp,
+      completedAt: version.timestamp,
+      outputVersionId: version.id,
+      id: version.generationRunId ?? `${project.id}-${version.id}-run`,
+    })
+  })
+}
+
+function createGenerationRuns(
+  project: Project,
+  versions: TrackVersion[],
+  sourceSet: SourceSet | undefined,
+  sourceInputs: SourceInput[],
+  interpretation: InterpretationSnapshot | undefined,
+  blueprints: Blueprint[],
+): GenerationRun[] {
+  if (project.generationRuns?.length) {
+    return project.generationRuns
+  }
+
+  return createSyntheticGenerationRuns(
+    project,
+    versions,
+    sourceSet,
+    sourceInputs,
+    interpretation,
+    blueprints,
+  )
+}
+
+function attachRunIdsToVersions(
+  versions: TrackVersion[],
+  generationRuns: GenerationRun[],
+  sourceSetId?: string,
+  interpretationId?: string,
+): TrackVersion[] {
+  const runByOutputVersionId = new Map(
+    generationRuns
+      .filter((run) => run.outputVersionId)
+      .map((run) => [run.outputVersionId as string, run]),
+  )
+
+  return versions.map((version) => ({
+    ...version,
+    sourceSetId: version.sourceSetId ?? sourceSetId,
+    interpretationId: version.interpretationId ?? interpretationId,
+    generationRunId: version.generationRunId ?? runByOutputVersionId.get(version.id)?.id,
   }))
 }
 
@@ -245,7 +453,8 @@ function createPracticeSessions(project: Project, versions: TrackVersion[]): Pra
     {
       id: `${project.id}-practice-1`,
       projectId: project.id,
-      versionId: versions.find((version) => version.isActive)?.id ?? versions[versions.length - 1].id,
+      versionId:
+        versions.find((version) => version.isActive)?.id ?? versions[versions.length - 1].id,
       mode: project.vocalsEnabled ? 'vocal' : 'guitar',
       focusArea: project.vocalsEnabled ? 'rhythm' : 'chords',
       selectedSection: 'Chorus',
@@ -288,7 +497,14 @@ function createExportBundles(project: Project, versions: TrackVersion[]): Export
                 : asset.type,
         name: `${project.title} ${asset.type.replace('_', ' ')}`,
         description: `${asset.type.replace('_', ' ')} export for ${project.title}`,
-        format: asset.type === 'midi' ? 'MID' : asset.type === 'chord_sheet' ? 'TXT' : asset.type === 'lyrics' ? 'TXT' : 'WAV',
+        format:
+          asset.type === 'midi'
+            ? 'MID'
+            : asset.type === 'chord_sheet'
+              ? 'TXT'
+              : asset.type === 'lyrics'
+                ? 'TXT'
+                : 'WAV',
         status:
           asset.status === 'unavailable'
             ? 'failed'
@@ -338,18 +554,81 @@ function deriveSourceType(sourceInputs: SourceInput[], fallback?: SourceType): S
   }
 }
 
+function getActiveBlueprint(project: Project, blueprints: Blueprint[]): Blueprint | undefined {
+  return (
+    blueprints.find((blueprint) => blueprint.id === project.activeBlueprintId) ??
+    blueprints[blueprints.length - 1]
+  )
+}
+
 export function normalizeProject(project: Project): PersistedProject {
   const sourceInputs = createSourceInputs(project)
+  const sourceSets = createSourceSets(project, sourceInputs)
+  const activeSourceSet =
+    sourceSets.find((sourceSet) => sourceSet.id === project.activeSourceSetId) ?? sourceSets[0]
   const blueprints = createBlueprints(project, sourceInputs)
-  const versions = createTrackVersions(project, blueprints)
+  const activeBlueprint = getActiveBlueprint(project, blueprints)
+  const interpretations = createInterpretations(project, activeSourceSet, sourceInputs, activeBlueprint)
+  const activeInterpretation =
+    interpretations.find((interpretation) => interpretation.id === project.activeInterpretationId) ??
+    interpretations[0]
+  const workingBlueprintDraft = createWorkingBlueprintDraft(
+    project,
+    activeSourceSet,
+    activeInterpretation,
+    activeBlueprint,
+  )
+  let versions = createTrackVersions(
+    project,
+    blueprints,
+    activeSourceSet?.id,
+    activeInterpretation?.id,
+  )
+  const generationRuns = createGenerationRuns(
+    project,
+    versions,
+    activeSourceSet,
+    sourceInputs,
+    activeInterpretation,
+    blueprints,
+  )
+  versions = attachRunIdsToVersions(
+    versions,
+    generationRuns,
+    activeSourceSet?.id,
+    activeInterpretation?.id,
+  )
+
+  if (!versions.length && blueprints.length && activeSourceSet && activeInterpretation) {
+    const syntheticRun = createGenerationRun({
+      project,
+      sourceSet: activeSourceSet,
+      sourceInputs,
+      interpretation: activeInterpretation,
+      blueprint: blueprints[blueprints.length - 1],
+      kind: 'base',
+      modifiers: { loadOnSuccess: true },
+    })
+    const generatedVersion = createMockTrackVersion({
+      project: {
+        ...project,
+        versions,
+      },
+      generationRun: syntheticRun,
+    })
+    const completedRun = updateGenerationRunStatus(syntheticRun, 'succeeded', {
+      outputVersionId: generatedVersion.id,
+    })
+    versions = [generatedVersion]
+    generationRuns.push(completedRun)
+  }
+
   const practiceSessions = createPracticeSessions(project, versions)
   const exportBundles = createExportBundles(project, versions)
-
-  const activeBlueprint = blueprints.find((blueprint) => blueprint.id === project.activeBlueprintId)
-    ?? blueprints[blueprints.length - 1]
-  const activeVersion = versions.find((version) => version.id === project.activeVersionId)
-    ?? versions.find((version) => version.isActive)
-    ?? versions[versions.length - 1]
+  const activeVersion =
+    versions.find((version) => version.id === project.activeVersionId) ??
+    versions.find((version) => version.isActive) ??
+    versions[versions.length - 1]
   const lastPracticeSession = practiceSessions[practiceSessions.length - 1]
 
   const library: ProjectLibraryState = project.library ?? {
@@ -362,18 +641,25 @@ export function normalizeProject(project: Project): PersistedProject {
   return {
     ...project,
     sourceInputs,
+    sourceSets,
+    interpretations,
     blueprints,
+    generationRuns,
+    workingBlueprintDraft,
+    activeSourceSetId: project.activeSourceSetId ?? activeSourceSet?.id,
+    activeInterpretationId: project.activeInterpretationId ?? activeInterpretation?.id,
     activeBlueprintId: project.activeBlueprintId ?? activeBlueprint?.id,
     versions,
     activeVersionId: project.activeVersionId ?? activeVersion?.id,
     practiceSessions,
     exportBundles,
     library,
-    publication: project.publication ?? {
-      isPublished: project.isPublished ?? false,
-      remixable: project.isPublished ?? false,
-      discoveryEligible: project.isPublished ?? false,
-    },
+    publication:
+      project.publication ?? {
+        isPublished: project.isPublished ?? false,
+        remixable: project.isPublished ?? false,
+        discoveryEligible: project.isPublished ?? false,
+      },
     versionCount: project.versionCount || versions.length,
     blueprint: activeBlueprint ?? project.blueprint,
     sourceType: library.sourceType,
@@ -382,12 +668,14 @@ export function normalizeProject(project: Project): PersistedProject {
     isExported: library.isExported,
     collection: library.collection,
     description: project.description,
-    mood: project.mood ?? activeBlueprint?.mood,
-    vocalsEnabled: project.vocalsEnabled ?? activeBlueprint?.vocalsEnabled,
-    lastPracticed: project.lastPracticed ?? lastPracticeSession?.endedAt ?? lastPracticeSession?.startedAt,
+    mood: project.mood ?? activeBlueprint?.mood ?? workingBlueprintDraft.mood,
+    vocalsEnabled:
+      project.vocalsEnabled ?? activeBlueprint?.vocalsEnabled ?? workingBlueprintDraft.vocalsEnabled,
+    lastPracticed:
+      project.lastPracticed ?? lastPracticeSession?.endedAt ?? lastPracticeSession?.startedAt,
     practiceReady: project.practiceReady ?? versions.length > 0,
-    bpm: project.bpm ?? activeBlueprint?.bpm,
-    key: project.key ?? activeBlueprint?.key,
-    genre: project.genre ?? activeBlueprint?.genre,
+    bpm: project.bpm ?? activeBlueprint?.bpm ?? workingBlueprintDraft.bpm,
+    key: project.key ?? activeBlueprint?.key ?? workingBlueprintDraft.key,
+    genre: project.genre ?? activeBlueprint?.genre ?? workingBlueprintDraft.genre,
   }
 }

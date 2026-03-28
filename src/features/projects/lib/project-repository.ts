@@ -30,5 +30,8 @@ export function loadProjects(): PersistedProject[] {
 }
 
 export function saveProjects(projects: PersistedProject[]): void {
-  writeStorageJson(PROJECTS_STORAGE_KEY, projects)
+  writeStorageJson(
+    PROJECTS_STORAGE_KEY,
+    projects.map((project) => normalizeProject(project)),
+  )
 }

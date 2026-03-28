@@ -1,4 +1,9 @@
+import type { Blueprint } from '@/domain/blueprint'
+import type { BlueprintDraft } from '@/domain/blueprint-draft'
+import type { GenerationRun } from '@/domain/generation-run'
+import type { InterpretationSnapshot } from '@/domain/interpretation'
 import type { PersistedProject, ProjectVersion } from '@/domain/project'
+import type { SourceSet } from '@/domain/source-set'
 import { useProjectStore } from '../store/use-project-store'
 
 export const PRIMARY_PROJECT_ID = 'proj-active-1'
@@ -54,4 +59,57 @@ export function getProjectVersion(
     project.versions.find((version) => version.isActive) ??
     project.versions[project.versions.length - 1]
   )
+}
+
+export function getActiveBlueprint(project: PersistedProject): Blueprint | undefined {
+  return (
+    project.blueprints.find((blueprint) => blueprint.id === project.activeBlueprintId) ??
+    project.blueprints[project.blueprints.length - 1]
+  )
+}
+
+export function getActiveSourceSet(project: PersistedProject): SourceSet | undefined {
+  return (
+    project.sourceSets.find((sourceSet) => sourceSet.id === project.activeSourceSetId) ??
+    project.sourceSets[0]
+  )
+}
+
+export function getActiveInterpretation(project: PersistedProject): InterpretationSnapshot | undefined {
+  return (
+    project.interpretations.find(
+      (interpretation) => interpretation.id === project.activeInterpretationId,
+    ) ?? project.interpretations[0]
+  )
+}
+
+export function getWorkingBlueprintDraft(project: PersistedProject): BlueprintDraft {
+  return project.workingBlueprintDraft
+}
+
+export function getLatestGenerationRun(project: PersistedProject): GenerationRun | undefined {
+  return [...project.generationRuns]
+    .sort(
+      (left, right) =>
+        new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime(),
+    )[0]
+}
+
+export function useMatchedProject(projectId?: string | null): PersistedProject | undefined {
+  return useProjectStore((state) =>
+    projectId ? state.projects.find((project) => project.id === projectId) : undefined,
+  )
+}
+
+export function useResolvedProject(projectId?: string | null): PersistedProject {
+  return useProjectStore((state) => {
+    const matchingProject = projectId
+      ? state.projects.find((project) => project.id === projectId)
+      : undefined
+    return (
+      matchingProject ??
+      state.projects.find((project) => project.id === PRIMARY_PROJECT_ID) ??
+      state.projects[0]
+    )
+  })
 }

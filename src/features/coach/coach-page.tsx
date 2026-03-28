@@ -4,15 +4,19 @@ import { Navigate, useParams } from 'react-router-dom'
 import { PracticeContextPanel } from './components/practice-context-panel'
 import { LivePerformanceStage } from './components/live-performance-stage'
 import { CoachTranscriptPanel } from './components/coach-transcript-panel'
-import { findProjectById, getProjectVersion, resolveProject } from '@/features/projects/lib/project-selectors'
+import {
+  getProjectVersion,
+  useMatchedProject,
+  useResolvedProject,
+} from '@/features/projects/lib/project-selectors'
 import { projectRoutes } from '@/features/projects/lib/project-routes'
 import { useProjectRouteContext } from '@/features/projects/hooks/use-project-route-context'
 import { usePracticeSessionStore } from './store/use-practice-session-store'
 
 export function CoachPage() {
   const { projectId } = useParams()
-  const matchedProject = findProjectById(projectId)
-  const activeProject = resolveProject(projectId)
+  const matchedProject = useMatchedProject(projectId)
+  const activeProject = useResolvedProject(projectId)
   const activeVersion = getProjectVersion(activeProject)
   const {
     sessionState,

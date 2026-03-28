@@ -29,6 +29,16 @@ export type SourceInputRole =
 
 export type SourceInputProvenance = 'recorded' | 'uploaded' | 'typed' | 'spotify' | 'project'
 
+export interface SourceInputNormalizedMetadata {
+  durationSeconds?: number
+  fileName?: string
+  fileFormat?: 'wav' | 'mp3' | 'pdf' | 'midi' | 'musicxml' | 'txt'
+  textLength?: number
+  providerName?: string
+  providerTitle?: string
+  providerArtist?: string
+}
+
 interface SourceInputBase {
   id: string
   projectId?: string
@@ -41,10 +51,13 @@ interface SourceInputBase {
   provenance: SourceInputProvenance
   isReference: boolean
   interpretationStatus?: 'pending' | 'interpreted' | 'attached'
+  rawAssetUrl?: string
+  normalized?: SourceInputNormalizedMetadata
+  interpretationIds?: string[]
 }
 
 export interface AudioSourceInput extends SourceInputBase {
-  type: 'hum' | 'sung_melody' | 'riff_audio' | 'remix_source'
+  type: 'hum' | 'sung_melody' | 'riff_audio'
   durationSeconds?: number
   audioUrl?: string
 }
@@ -60,10 +73,20 @@ export interface SheetSourceInput extends SourceInputBase {
   fileFormat?: 'pdf' | 'midi' | 'musicxml'
 }
 
+export interface RemixSourceInput extends SourceInputBase {
+  type: 'remix_source'
+  durationSeconds?: number
+  audioUrl?: string
+  sourceProjectId?: string
+  sourceVersionId?: string
+  inheritsEditableAudio?: boolean
+}
+
 export interface SpotifyTrackReferenceInput extends SourceInputBase {
   type: 'spotify_track_reference'
   spotifyUri: string
   artistName?: string
+  providerTrackName?: string
 }
 
 export interface SpotifyPlaylistReferenceInput extends SourceInputBase {
@@ -76,6 +99,7 @@ export type SourceInput =
   | AudioSourceInput
   | TextSourceInput
   | SheetSourceInput
+  | RemixSourceInput
   | SpotifyTrackReferenceInput
   | SpotifyPlaylistReferenceInput
 

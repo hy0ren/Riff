@@ -33,6 +33,9 @@ export interface TrackVersion {
   tags: string[]
   kind?: TrackVersionKind
   sourceBlueprintId?: string
+  sourceSetId?: string
+  interpretationId?: string
+  generationRunId?: string
   parentVersionId?: string
   audioUrl?: string
   structure?: TrackStructureNode[]
