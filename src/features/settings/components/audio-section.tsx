@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react'
+
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 
@@ -6,7 +8,7 @@ const rowStyle = {
   border: '1px solid rgba(255,255,255,0.04)',
 } as const
 
-function ValuePill({ children }: { children: React.ReactNode }) {
+function ValuePill({ children }: { children: ReactNode }) {
   return (
     <div
       className="max-w-[min(100%,280px)] truncate rounded-lg border border-white/[0.04] px-3 py-1.5 text-sm text-[var(--riff-text-primary)]"

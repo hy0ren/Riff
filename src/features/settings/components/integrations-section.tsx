@@ -24,24 +24,22 @@ export function IntegrationsSection() {
         className="space-y-4 rounded-2xl p-5"
         style={{ background: 'var(--riff-surface-low)', border: '1px solid rgba(255,255,255,0.04)' }}
       >
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="space-y-2">
-            <p className="font-display text-lg font-bold" style={{ color: '#1db954' }}>
-              ♫ Spotify
-            </p>
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge
-                className="border border-[#1db954]/35 bg-[#1db954]/15 text-[11px] text-[#1db954]"
-                variant="outline"
-              >
-                Connected
-              </Badge>
-              <span className="text-sm text-[var(--riff-text-secondary)]">alex.rivera</span>
-            </div>
-            <p className="text-[12px] text-[var(--riff-text-muted)]">
-              12 playlists imported · Last sync 2h ago
-            </p>
+        <div className="space-y-2">
+          <p className="font-display text-lg font-bold" style={{ color: '#1db954' }}>
+            ♫ Spotify
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge
+              className="border border-[#1db954]/35 bg-[#1db954]/15 text-[11px] text-[#1db954]"
+              variant="outline"
+            >
+              Connected
+            </Badge>
+            <span className="text-sm text-[var(--riff-text-secondary)]">alex.rivera</span>
           </div>
+          <p className="text-[12px] text-[var(--riff-text-muted)]">
+            12 playlists imported · Last sync 2h ago
+          </p>
         </div>
 
         <Separator className="bg-white/[0.06]" />
