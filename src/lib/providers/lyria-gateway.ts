@@ -2,6 +2,7 @@ import type { LyriaGenerationRequest, LyriaGenerationResult } from '@/domain/pro
 import type { Blueprint } from '@/domain/blueprint'
 import type { SourceInput } from '@/domain/source-input'
 import type { SourceSet } from '@/domain/source-set'
+import { parseLyricsTextIntoSections } from '@/lib/lyrics'
 import { callLyriaGeneration } from '@/services/google/lyria'
 import { hashJsonPayload } from './hash'
 
@@ -141,6 +142,15 @@ export async function generateTrack(
 ): Promise<LyriaGenerationResult> {
   const requestHash = await hashJsonPayload(request)
   const result = await callLyriaGeneration(buildPrompt(request))
+  const generatedLyrics = parseLyricsTextIntoSections(
+    `lyria-${requestHash.slice(0, 12)}`,
+    result.text,
+    request.blueprint.vocalStyle,
+  )
+  const summaryText =
+    generatedLyrics?.length
+      ? 'Generated song with Lyria, including lyric draft and audio output.'
+      : result.text || 'Generated music with Lyria.'
 
   return {
     provider: 'google-lyria',
@@ -148,9 +158,10 @@ export async function generateTrack(
     schemaVersion: 'spartan4.v1',
     requestHash,
     providerRunId: `lyria-${requestHash.slice(0, 12)}`,
-    summary: result.text || 'Generated music with Lyria.',
+    summary: summaryText,
     durationSeconds: 30,
     artifactMimeType: result.mimeType,
     artifactBase64: result.data,
+    lyricsText: generatedLyrics?.length ? result.text : undefined,
   }
 }

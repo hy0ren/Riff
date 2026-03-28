@@ -1,0 +1,159 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+2 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+3 0 obj
+<< /Length 4050 >>
+stream
+BT /F2 26 Tf 1 0 0 1 54 732 Tm (Riff) Tj ET
+BT /F1 12 Tf 1 0 0 1 54 698 Tm (Desktop-first AI music creation that turns rough musical ideas into complete songs,) Tj ET
+BT /F1 12 Tf 1 0 0 1 54 682 Tm (persistent projects, and learnable musical guides.) Tj ET
+BT /F1 10 Tf 1 0 0 1 54 660 Tm (Formal project writeup for hackathon and Kaggle-style submission) Tj ET
+0.95 0.96 0.98 rg 54 566 504 76 re f
+0.11 0.30 0.65 rg 54 566 5 76 re f
+BT /F2 11 Tf 1 0 0 1 68 628 Tm (One-sentence summary: Riff is a desktop-first AI music creation platform that helps) Tj ET
+BT /F1 11 Tf 1 0 0 1 68 613 Tm (creators start from a hum, riff, lyric, chord progression, sheet music, remix source, or) Tj ET
+BT /F1 11 Tf 1 0 0 1 68 598 Tm (Spotify reference, generate a complete song, and then organize and learn that song) Tj ET
+BT /F1 11 Tf 1 0 0 1 68 583 Tm (inside one persistent workspace.) Tj ET
+BT /F2 14 Tf 1 0 0 1 54 552 Tm (Inspiration) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 528 Tm (Music ideas are fragile. A melody, lyric, or chord loop can arrive in a single moment and) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 513 Tm (disappear just as quickly. The inspiration for Riff came from wanting to build a tool that) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 498 Tm (does more than generate novelty output. I wanted a product that helps creators capture an) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 483 Tm (idea in whatever form it first appears, transform it into a complete song, preserve it as a) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 468 Tm (real project, and make that result something the creator can continue to study and master.) Tj ET
+BT /F2 14 Tf 1 0 0 1 54 445 Tm (What the application does) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 421 Tm (Riff is an AI music creation platform centered around multi-input song generation. A user) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 406 Tm (can begin with several kinds of source material, including hummed melodies, guitar riffs,) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 391 Tm (lyrics, chord progressions, sheet music, remix references, and Spotify references. The) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 376 Tm (application interprets those inputs, estimates musical attributes such as BPM, key, chords,) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 361 Tm (and song structure, and then generates a complete song. The resulting track is stored as a) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 346 Tm (persistent project in a library, complete with metadata, artwork, exports, and a Learn mode) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 331 Tm (that helps break the song down into lyrics, chords, melody guidance, and sections such as) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 316 Tm (verse, chorus, and bridge.) Tj ET
+BT /F2 14 Tf 1 0 0 1 54 293 Tm (How it was built) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 269 Tm (I built Riff with a React, TypeScript, and Vite frontend, using Tailwind CSS and shadcn/ui) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 254 Tm (for the interface layer. The desktop application path uses Tauri and Rust, allowing the) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 239 Tm (product to feel installable and local-first instead of browser-only. Firebase was) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 224 Tm (integrated for accounts, profiles, and cloud-backed sync, while Spotify was added as a) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 209 Tm (reference and personalization layer. Gemini powered most of the intelligence in the) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 194 Tm (product, including interpreting source inputs, inferring BPM and key, organizing chords and) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 179 Tm (structure, generating learning guidance, and improving prompts for downstream media) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 164 Tm (generation. Lyria served as the core music generation engine, and Nano Banana was used to) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 149 Tm (generate song-related cover art.) Tj ET
+BT /F2 14 Tf 1 0 0 1 54 126 Tm (Technical stack) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 102 Tm (-) Tj ET
+BT /F1 11 Tf 1 0 0 1 68 102 Tm (Frontend: React, TypeScript, Vite, Tailwind CSS, shadcn/ui) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 85 Tm (-) Tj ET
+BT /F1 11 Tf 1 0 0 1 68 85 Tm (Desktop layer: Tauri, Rust) Tj ET
+endstream
+endobj
+4 0 obj
+<< /Type /Page /Parent 9 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 3 0 R >>
+endobj
+5 0 obj
+<< /Length 4263 >>
+stream
+BT /F1 11 Tf 1 0 0 1 54 732 Tm (-) Tj ET
+BT /F1 11 Tf 1 0 0 1 68 732 Tm (Auth and data: Firebase Authentication, Firestore, Firebase Hosting) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 715 Tm (-) Tj ET
+BT /F1 11 Tf 1 0 0 1 68 715 Tm (Music intelligence: Gemini) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 698 Tm (-) Tj ET
+BT /F1 11 Tf 1 0 0 1 68 698 Tm (Song generation: Lyria) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 681 Tm (-) Tj ET
+BT /F1 11 Tf 1 0 0 1 68 681 Tm (Visual generation: Nano Banana) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 664 Tm (-) Tj ET
+BT /F1 11 Tf 1 0 0 1 68 664 Tm (Reference integration: Spotify) Tj ET
+BT /F2 14 Tf 1 0 0 1 54 647 Tm (Why the project is different) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 623 Tm (Many AI music applications focus on one-shot generation. Riff is different because it is) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 608 Tm (designed around the full lifecycle of a song. It starts with incomplete musical intent,) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 593 Tm (supports multiple source types at once, uses AI to structure and interpret those inputs,) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 578 Tm (generates a complete track, saves that track as a persistent project, and then helps the) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 563 Tm (creator learn and revisit what was made. That combination of creation, persistence,) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 548 Tm (organization, and learning makes it feel more like a serious creative tool than a) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 533 Tm (disposable generator.) Tj ET
+BT /F2 14 Tf 1 0 0 1 54 510 Tm (Challenges encountered) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 486 Tm (The biggest challenge was not simply connecting to AI models, but shaping them into one) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 471 Tm (coherent product. It required defining clear roles for different systems, preserving) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 456 Tm (project state over time, making generated outputs editable and inspectable, and ensuring) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 441 Tm (the experience still felt musical rather than overly technical. Integrations added another) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 426 Tm (layer of difficulty, especially around authentication, desktop behavior, and maintaining a) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 411 Tm (consistent experience across browser and desktop contexts.) Tj ET
+BT /F2 14 Tf 1 0 0 1 54 388 Tm (What I am proud of) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 364 Tm (I am proud that Riff feels like a product with a real center of gravity instead of a bundle) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 349 Tm (of disconnected demos. The multi-input generation workflow is ambitious but clear, the) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 334 Tm (library and track details make songs feel persistent and serious, and the Learn mode gives) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 319 Tm (the generated output a second life by turning it into something a creator can actually use) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 304 Tm (to understand and practice the song.) Tj ET
+BT /F2 14 Tf 1 0 0 1 54 281 Tm (What I learned) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 257 Tm (The most important lesson was that building with AI is not only about model quality. The) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 242 Tm (harder problem is orchestration: deciding which model is responsible for which task, how) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 227 Tm (outputs flow into product state, and how to make AI-generated content useful inside a real) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 212 Tm (workflow. I also learned a great deal about desktop product design, persistence, auth) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 197 Tm (flows, and how much UX discipline is required to make an AI product feel trustworthy.) Tj ET
+BT /F2 14 Tf 1 0 0 1 54 174 Tm (Demo flow) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 150 Tm (-) Tj ET
+BT /F1 11 Tf 1 0 0 1 68 150 Tm (Start a project from a hum, riff, lyric draft, chord progression, sheet music, remix) Tj ET
+BT /F1 11 Tf 1 0 0 1 68 135 Tm (source, or Spotify reference.) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 118 Tm (-) Tj ET
+BT /F1 11 Tf 1 0 0 1 68 118 Tm (Use Gemini to interpret the input and infer musical structure such as BPM, key, chords,) Tj ET
+BT /F1 11 Tf 1 0 0 1 68 103 Tm (and arrangement hints.) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 86 Tm (-) Tj ET
+BT /F1 11 Tf 1 0 0 1 68 86 Tm (Refine those defaults in Studio and generate a full song with Lyria.) Tj ET
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 9 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 5 0 R >>
+endobj
+7 0 obj
+<< /Length 1254 >>
+stream
+BT /F1 11 Tf 1 0 0 1 54 732 Tm (-) Tj ET
+BT /F1 11 Tf 1 0 0 1 68 732 Tm (Automatically attach cover art, save the result in the Library, and inspect it in Track) Tj ET
+BT /F1 11 Tf 1 0 0 1 68 717 Tm (Details.) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 700 Tm (-) Tj ET
+BT /F1 11 Tf 1 0 0 1 68 700 Tm (Open Learn mode to review lyrics, chords, melody direction, and section-by-section) Tj ET
+BT /F1 11 Tf 1 0 0 1 68 685 Tm (guidance.) Tj ET
+BT /F2 14 Tf 1 0 0 1 54 668 Tm (Next steps) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 644 Tm (The next steps for Riff are to strengthen backend architecture for secure multi-user AI) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 629 Tm (access, continue improving desktop-native authentication flows, deepen synchronization and) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 614 Tm (account features, and expand the learning layer into an even more interactive companion for) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 599 Tm (creators. The long-term goal is for Riff to become a complete creator platform for) Tj ET
+BT /F1 11 Tf 1 0 0 1 54 584 Tm (generating, refining, organizing, and mastering original music in one environment.) Tj ET
+0.8 0.82 0.85 RG 54 567 m 558 567 l S
+BT /F1 9 Tf 1 0 0 1 54 553 Tm (Prepared for submission and project review. Built as a solo project.) Tj ET
+endstream
+endobj
+8 0 obj
+<< /Type /Page /Parent 9 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 7 0 R >>
+endobj
+9 0 obj
+<< /Type /Pages /Count 3 /Kids [4 0 R 6 0 R 8 0 R] >>
+endobj
+10 0 obj
+<< /Type /Catalog /Pages 9 0 R >>
+endobj
+11 0 obj
+<< /Title (Riff Project Writeup) /Producer (Codex PDF Generator) /Creator (Codex) >>
+endobj
+xref
+0 12
+0000000000 65535 f 
+0000000009 00000 n 
+0000000079 00000 n 
+0000000154 00000 n 
+0000004256 00000 n 
+0000004392 00000 n 
+0000008707 00000 n 
+0000008843 00000 n 
+0000010149 00000 n 
+0000010285 00000 n 
+0000010354 00000 n 
+0000010404 00000 n 
+trailer
+<< /Size 12 /Root 10 0 R /Info 11 0 R >>
+startxref
+10505
+%%EOF

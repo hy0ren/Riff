@@ -19,8 +19,8 @@ import {
   buildChordSheetPlainText,
   buildLyricsPlainText,
   buildMelodyGuidePlainText,
+  getDisplayLyrics,
   getVersionBlueprint,
-  getVersionLyrics,
   getVersionSectionGuides,
   getVersionStructure,
 } from '@/features/projects/lib/project-details'
@@ -39,7 +39,7 @@ export function TrackDetailsPage() {
     ? getProjectVersion(activeProject, versionId)
     : undefined
   const activeBlueprint = activeVersion ? getVersionBlueprint(activeProject, activeVersion) : undefined
-  const activeLyrics = activeVersion ? getVersionLyrics(activeProject, activeVersion) : undefined
+  const activeLyrics = activeVersion ? getDisplayLyrics(activeProject, activeVersion) : undefined
   const activeStructure = activeVersion ? getVersionStructure(activeProject, activeVersion) : undefined
   const activeSectionGuides = activeVersion
     ? getVersionSectionGuides(activeProject, activeVersion)

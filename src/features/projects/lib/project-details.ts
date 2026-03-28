@@ -1,6 +1,7 @@
 import type { Blueprint, LyricsSection, TrackStructureNode } from '@/domain/blueprint'
 import type { LearnSectionGuide } from '@/domain/providers'
 import type { PersistedProject, ProjectVersion } from '@/domain/project'
+import { parseLyricsTextIntoSections } from '@/lib/lyrics'
 import { buildChordSectionSuggestion, parseChordTokens } from '@/lib/music-analysis'
 
 function extractStructuredLyricSection(
@@ -218,6 +219,24 @@ export function getVersionLyrics(
     return version.insight.lyricSections
   }
 
+  const noteLyrics = parseLyricsTextIntoSections(
+    version.id,
+    version.notes,
+    getVersionBlueprint(project, version)?.vocalStyle,
+  )
+  if (noteLyrics?.length) {
+    return noteLyrics
+  }
+
+  const themeLyrics = parseLyricsTextIntoSections(
+    version.id,
+    getVersionBlueprint(project, version)?.lyricTheme,
+    getVersionBlueprint(project, version)?.vocalStyle,
+  )
+  if (themeLyrics?.length) {
+    return themeLyrics
+  }
+
   const lyricSource = findLyricsSource(project)
 
   if (!lyricSource?.text) {
@@ -264,6 +283,20 @@ export function getVersionLyrics(
         },
       ]
     : undefined
+}
+
+export function getDisplayLyrics(
+  project: PersistedProject,
+  version: ProjectVersion,
+): LyricsSection[] | undefined {
+  const persistedLearnLyrics =
+    version.insight?.lyricSections?.length
+      ? version.insight.lyricSections
+      : version.lyrics?.length
+        ? version.lyrics
+        : undefined
+
+  return persistedLearnLyrics ?? getVersionLyrics(project, version)
 }
 
 export function getVersionSectionGuides(

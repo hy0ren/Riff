@@ -24,6 +24,7 @@ import {
 } from '@/lib/providers/gemini-gateway'
 import { generateProjectCoverArt } from '@/lib/providers/cover-art-gateway'
 import { generateTrack } from '@/lib/providers/lyria-gateway'
+import { parseLyricsTextIntoSections } from '@/lib/lyrics'
 import type { Blueprint } from '@/domain/blueprint'
 
 interface StartGenerationOptions {
@@ -637,7 +638,14 @@ export const useStudioStore = create<StudioState>((set) => ({
         isActive: runningRun.modifiers?.loadOnSuccess ?? true,
         notes: providerResult.summary,
         structure: insight?.chordSections ?? nextVersion.structure,
-        lyrics: insight?.lyricSections ?? nextVersion.lyrics,
+        lyrics:
+          insight?.lyricSections ??
+          parseLyricsTextIntoSections(
+            nextVersion.id,
+            providerResult.lyricsText,
+            generationBlueprint.vocalStyle,
+          ) ??
+          nextVersion.lyrics,
         audioUrl:
           providerResult.artifactBase64 && providerResult.artifactMimeType
             ? `data:${providerResult.artifactMimeType};base64,${providerResult.artifactBase64}`

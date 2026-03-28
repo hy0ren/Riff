@@ -107,6 +107,7 @@ export interface LyriaGenerationResult extends ProviderModelMetadata {
   durationSeconds: number
   artifactMimeType?: string
   artifactBase64?: string
+  lyricsText?: string
 }
 
 export interface SpotifyAuthState {

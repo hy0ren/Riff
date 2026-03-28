@@ -21,6 +21,9 @@ import {
   useMatchedProject,
   useResolvedProject,
 } from '@/features/projects/lib/project-selectors'
+import {
+  getDisplayLyrics,
+} from '@/features/projects/lib/project-details'
 import { projectRoutes } from '@/features/projects/lib/project-routes'
 import { useProjectRouteContext } from '@/features/projects/hooks/use-project-route-context'
 import { usePlaybackStore } from '@/features/playback/store/use-playback-store'
@@ -146,7 +149,7 @@ export function LearnPage() {
     ...s,
     chords: s.chords ?? [],
   }))
-  const lyricSections = (insight?.lyricSections ?? activeVersion.lyrics ?? []).map((s) => ({
+  const lyricSections = (getDisplayLyrics(activeProject, activeVersion) ?? []).map((s) => ({
     ...s,
     lines: s.lines ?? [],
   }))

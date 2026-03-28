@@ -10,6 +10,45 @@ import {
 } from '@/lib/providers/spotify-gateway'
 import { useIntegrationStore } from './store/use-integration-store'
 
+const SPOTIFY_CALLBACK_LOCK_PREFIX = 'riff.spotify.callback-lock'
+
+function readCallbackLock(code: string): 'processing' | 'done' | null {
+  if (typeof window === 'undefined') {
+    return null
+  }
+
+  try {
+    const value = window.sessionStorage.getItem(`${SPOTIFY_CALLBACK_LOCK_PREFIX}:${code}`)
+    return value === 'processing' || value === 'done' ? value : null
+  } catch {
+    return null
+  }
+}
+
+function writeCallbackLock(code: string, status: 'processing' | 'done') {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  try {
+    window.sessionStorage.setItem(`${SPOTIFY_CALLBACK_LOCK_PREFIX}:${code}`, status)
+  } catch {
+    // Ignore session storage failures in prototype mode.
+  }
+}
+
+function clearCallbackLock(code: string) {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  try {
+    window.sessionStorage.removeItem(`${SPOTIFY_CALLBACK_LOCK_PREFIX}:${code}`)
+  } catch {
+    // Ignore session storage failures in prototype mode.
+  }
+}
+
 export function SpotifyCallbackPage() {
   const location = useLocation()
   const [status, setStatus] = useState<'processing' | 'failed'>('processing')
@@ -56,8 +95,17 @@ export function SpotifyCallbackPage() {
         return
       }
 
+      const callbackLock = readCallbackLock(code)
+      if (callbackLock === 'done') {
+        return
+      }
+      if (callbackLock === 'processing') {
+        return
+      }
+
       try {
         setStep('token')
+        writeCallbackLock(code, 'processing')
         const nextAuth = await completeSpotifyAuthorization({
           code,
           storedAuth: resolvedAuth,
@@ -82,11 +130,13 @@ export function SpotifyCallbackPage() {
           playlists: syncResult.playlists,
           lastSyncedAt: new Date().toISOString(),
         })
+        writeCallbackLock(code, 'done')
       } catch (error) {
         if (cancelled) {
           return
         }
 
+        clearCallbackLock(code)
         setStatus('failed')
         setErrorMessage(
           error instanceof Error ? error.message : 'Spotify authorization failed.',
