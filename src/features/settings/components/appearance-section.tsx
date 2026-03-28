@@ -75,6 +75,18 @@ export function AppearanceSection() {
           }
         />
         <SettingRow
+          label="Sidebar minimized"
+          description="Collapse the left navigation into an icon rail and keep it that way across sessions."
+          control={
+            <Switch
+              size="sm"
+              checked={appearance.sidebarCollapsed}
+              onCheckedChange={(value) => setAppearance({ sidebarCollapsed: value })}
+              aria-label="Sidebar minimized"
+            />
+          }
+        />
+        <SettingRow
           label="Reduce motion"
           description="Cuts down decorative animation and smooth scrolling across the app."
           control={

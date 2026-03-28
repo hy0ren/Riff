@@ -176,7 +176,17 @@ export function AccountSection() {
                     Joined {new Date(profile.createdAt).toLocaleDateString()}
                   </p>
                   {firebaseProjectId ? (
-                    <p className="text-xs text-[var(--riff-text-faint)]">Firebase project: {firebaseProjectId}</p>
+                    <div className="flex flex-col gap-1.5 pt-1">
+                      <p className="text-[10px] uppercase tracking-wider text-[var(--riff-text-faint)]">
+                        Firebase project: {firebaseProjectId}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="h-5 gap-1.5 border-emerald-500/30 bg-emerald-500/10 px-2 text-[10px] font-medium text-emerald-400">
+                          <div className="size-1.5 animate-pulse rounded-full bg-emerald-400" />
+                          Cloud Auto-Sync Active
+                        </Badge>
+                      </div>
+                    </div>
                   ) : null}
                 </div>
               </div>
@@ -238,17 +248,22 @@ export function AccountSection() {
             <div className="mt-6 flex flex-wrap gap-2 border-t border-white/[0.06] pt-6">
               <Button variant="outline" size="sm" className="gap-2" onClick={() => void handlePushLibrary()} disabled={isSyncingUp}>
                 <CloudUpload className="size-4" />
-                {isSyncingUp ? 'Pushing…' : 'Push Local Library'}
+                {isSyncingUp ? 'Pushing…' : 'Force Push to Cloud'}
               </Button>
               <Button variant="outline" size="sm" className="gap-2" onClick={() => void handlePullLibrary()} disabled={isSyncingDown}>
                 <CloudDownload className="size-4" />
-                {isSyncingDown ? 'Pulling…' : 'Pull Cloud Library'}
+                {isSyncingDown ? 'Pull Cloud Library' : 'Pull Cloud Library'}
               </Button>
               <Button variant="ghost" size="sm" className="gap-2" onClick={() => void handleSaveProfile()}>
                 <Pencil className="size-4" />
                 Update Profile
               </Button>
             </div>
+
+            <p className="mt-4 text-[10px] leading-relaxed text-[var(--riff-text-faint)]">
+              Your library is automatically synced to the cloud every time you make a change (with a 2-second debounce).
+              Use <strong>Force Push</strong> if you need an immediate backup, or <strong>Pull</strong> to sync this device with your latest cloud versions.
+            </p>
 
             {syncMessage ? (
               <p className="mt-3 text-xs text-[var(--riff-text-secondary)]">{syncMessage}</p>

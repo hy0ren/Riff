@@ -9,6 +9,7 @@ export type ExportAudioFormat = 'wav' | 'mp3'
 export interface SettingsSnapshot {
   appearance: {
     compactSidebar: boolean
+    sidebarCollapsed: boolean
     reduceMotion: boolean
     typographyScale: TypographyScale
   }
@@ -47,6 +48,7 @@ interface SettingsStoreState extends SettingsSnapshot {
 const DEFAULT_SETTINGS: SettingsSnapshot = {
   appearance: {
     compactSidebar: false,
+    sidebarCollapsed: false,
     reduceMotion: false,
     typographyScale: 'default',
   },
