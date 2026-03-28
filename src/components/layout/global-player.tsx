@@ -12,7 +12,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
-import { useShellStore } from '@/stores/use-shell-store'
+import { usePlaybackStore } from '@/features/playback/store/use-playback-store'
 import { cn } from '@/lib/utils'
 
 function formatTime(seconds: number): string {
@@ -30,7 +30,7 @@ export function GlobalPlayer() {
     togglePlayback,
     setCurrentTime,
     setVolume,
-  } = useShellStore()
+  } = usePlaybackStore()
 
   const hasTrack = !!currentTrack
   const progress = hasTrack && currentTrack.duration > 0

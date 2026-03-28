@@ -1,7 +1,5 @@
 import type { ProjectVersion } from '@/domain/project'
 import { Download, FileAudio, FileMusic, FileText, PackageOpen, CheckCircle2, Clock } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
 
 interface ExportsTabProps {
   version: ProjectVersion

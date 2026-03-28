@@ -1,6 +1,5 @@
 import { Navigate, useParams } from 'react-router-dom'
 import { PageFrame } from '@/components/layout/page-frame'
-import { RECENT_PROJECTS } from '@/mocks/mock-data'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { TrackHero } from './components/track-hero'
 import { OverviewTab } from './components/overview-tab'
@@ -8,22 +7,38 @@ import { ChordsTab } from './components/chords-tab'
 import { MelodyTab } from './components/melody-tab'
 import { LyricsTab } from './components/lyrics-tab'
 import { ExportsTab } from './components/exports-tab'
+import { findProjectById, getProjectVersion, resolveProject } from '@/features/projects/lib/project-selectors'
+import { projectRoutes } from '@/features/projects/lib/project-routes'
+import { useProjectRouteContext } from '@/features/projects/hooks/use-project-route-context'
 
 export function TrackDetailsPage() {
-  const { id } = useParams()
-  
-  // For the prototype, if no ID is passed or if it doesn't match, we fallback to our highly-mocked active project
-  const projectId = id || 'proj-active-1'
-  const activeProject = RECENT_PROJECTS.find(p => p.id === projectId) || RECENT_PROJECTS.find(p => p.id === 'proj-active-1')
+  const { projectId, versionId } = useParams()
+  const matchedProject = findProjectById(projectId)
+  const activeProject = resolveProject(projectId)
+  const activeVersion = activeProject.versions
+    ? getProjectVersion(activeProject, versionId)
+    : undefined
+
+  useProjectRouteContext({
+    projectId: activeProject.id,
+    projectName: activeProject.title,
+    versionId: activeVersion?.id ?? null,
+  })
 
   if (!activeProject || !activeProject.versions) {
     return <Navigate to="/" replace />
   }
 
-  const activeVersion = activeProject.versions.find(v => v.isActive) || activeProject.versions[activeProject.versions.length - 1]
+  if (!matchedProject && projectId) {
+    return <Navigate to={projectRoutes.details(activeProject.id)} replace />
+  }
+
+  if (!activeVersion) {
+    return <Navigate to={projectRoutes.details(activeProject.id)} replace />
+  }
 
   return (
-    <PageFrame fullBleed noPadding>
+    <PageFrame fullBleed>
       <div className="flex h-full flex-col bg-[var(--riff-background)] overflow-y-auto">
         
         {/* Rich Hero Section */}

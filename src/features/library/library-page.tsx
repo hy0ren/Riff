@@ -1,23 +1,23 @@
 import { useState, useMemo } from 'react'
 import { PageFrame } from '@/components/layout/page-frame'
-import { LIBRARY_PROJECTS } from '@/mocks/mock-data'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Badge } from '@/components/ui/badge'
 import { 
   Search, LayoutGrid, List, Plus, Upload, FolderPlus,
-  SlidersHorizontal, ArrowUpDown, Music, Layers, CheckCircle2,
+  Music, CheckCircle2,
   Star, Archive, Clock
 } from 'lucide-react'
 import { LibraryProjectCard } from './components/library-project-card'
 import { LibraryProjectRow } from './components/library-project-row'
 import { LibraryInspector } from './components/library-inspector'
+import { useProjectStore } from '@/features/projects/store/use-project-store'
 
 type ViewMode = 'grid' | 'list'
 type TabFilter = 'all' | 'drafts' | 'final' | 'favorites' | 'collections'
 type SortMode = 'recent' | 'title' | 'bpm'
 
 export function LibraryPage() {
+  const projects = useProjectStore((state) => state.projects)
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const [activeTab, setActiveTab] = useState<TabFilter>('all')
   const [searchQuery, setSearchQuery] = useState('')
@@ -26,7 +26,7 @@ export function LibraryPage() {
 
   // Filtering
   const filtered = useMemo(() => {
-    let items = [...LIBRARY_PROJECTS]
+    let items = [...projects]
 
     // Tab filter
     switch (activeTab) {
@@ -69,15 +69,15 @@ export function LibraryPage() {
     }
 
     return items
-  }, [activeTab, searchQuery, sortMode])
+  }, [activeTab, projects, searchQuery, sortMode])
 
-  const selectedProject = selectedId ? LIBRARY_PROJECTS.find(p => p.id === selectedId) : null
+  const selectedProject = selectedId ? projects.find(p => p.id === selectedId) : null
 
   // Stats
-  const totalProjects = LIBRARY_PROJECTS.length
-  const draftCount = LIBRARY_PROJECTS.filter(p => p.status === 'draft').length
-  const finalCount = LIBRARY_PROJECTS.filter(p => p.status === 'finished').length
-  const exportedCount = LIBRARY_PROJECTS.filter(p => p.isExported).length
+  const totalProjects = projects.length
+  const draftCount = projects.filter(p => p.status === 'draft').length
+  const finalCount = projects.filter(p => p.status === 'finished').length
+  const exportedCount = projects.filter(p => p.isExported).length
 
   return (
     <PageFrame

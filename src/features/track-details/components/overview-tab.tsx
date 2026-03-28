@@ -1,5 +1,5 @@
 import type { Project, ProjectVersion } from '@/domain/project'
-import { Clock, Activity, ListMusic, Mic2, Guitar, AlignLeft } from 'lucide-react'
+import { Mic2, Guitar, AlignLeft } from 'lucide-react'
 
 interface OverviewTabProps {
   project: Project
@@ -23,7 +23,7 @@ export function OverviewTab({ project, version }: OverviewTabProps) {
           </div>
           
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {version.structure?.map((section, idx) => (
+            {version.structure?.map((section) => (
               <div key={section.id} className="flex flex-col gap-2 p-4 rounded-xl bg-[var(--riff-surface-low)] border border-[var(--riff-surface-highest)] hover:border-[var(--riff-accent)]/30 hover:bg-[var(--riff-surface-high)] transition-colors group cursor-default">
                 <div className="flex items-start justify-between">
                   <span className="text-sm font-bold text-[var(--riff-text-primary)] group-hover:text-[var(--riff-accent-light)] transition-colors">{section.label}</span>

@@ -17,9 +17,12 @@ import { SavedStations } from './components/saved-stations'
 import { StationHero } from './components/station-hero'
 import { StationQueue } from './components/station-queue'
 import { TuningPanel } from './components/tuning-panel'
+import { usePlaybackStore } from '@/features/playback/store/use-playback-store'
+import { toRadioPlayableTrack } from '@/features/playback/lib/playable-track'
 
 export function RadioPage() {
   const navigate = useNavigate()
+  const { currentTrack, setTrack, play, pause } = usePlaybackStore()
 
   const [station, setStation] = useState(RADIO_ACTIVE_STATION)
   const [track] = useState(RADIO_NOW_PLAYING)
@@ -29,6 +32,16 @@ export function RadioPage() {
 
   // Station controls
   const handlePlayPause = () => {
+    const playableTrack = toRadioPlayableTrack(track)
+
+    if (!currentTrack || currentTrack.id !== playableTrack.id) {
+      setTrack(playableTrack)
+    } else if (station.isPlaying) {
+      pause()
+    } else {
+      play()
+    }
+
     setStation((s) => ({ ...s, isPlaying: !s.isPlaying }))
   }
 

@@ -1,5 +1,5 @@
 import type { Project, ProjectVersion } from '@/domain/project'
-import type { PracticeMode, SessionState } from '../coach-page'
+import type { PracticeMode, SessionState } from '../types/practice-session'
 import { Play, Pause, Square, Mic, Volume2, Target } from 'lucide-react'
 
 interface LivePerformanceStageProps {

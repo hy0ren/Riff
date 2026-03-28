@@ -1,13 +1,25 @@
 import { PageFrame } from '@/components/layout/page-frame'
-import { RECENT_PROJECTS } from '@/mocks/mock-data'
-import { Navigate } from 'react-router-dom'
+import { Navigate, useParams } from 'react-router-dom'
 import { SourceContextPanel } from './components/source-context-panel'
 import { GenerationWorkspace } from './components/generation-workspace'
 import { BlueprintEditor } from './components/blueprint-editor'
+import { projectRoutes } from '@/features/projects/lib/project-routes'
+import { findProjectById, resolveProject } from '@/features/projects/lib/project-selectors'
+import { useProjectRouteContext } from '@/features/projects/hooks/use-project-route-context'
 
 export function StudioPage() {
-  // Load the active mocked project
-  const activeProject = RECENT_PROJECTS.find(p => p.id === 'proj-active-1')
+  const { projectId } = useParams()
+  const matchedProject = findProjectById(projectId)
+  const activeProject = resolveProject(projectId)
+
+  useProjectRouteContext({
+    projectId: activeProject.id,
+    projectName: activeProject.title,
+  })
+
+  if (!matchedProject && projectId) {
+    return <Navigate to={projectRoutes.studio(activeProject.id)} replace />
+  }
 
   if (!activeProject || !activeProject.blueprint || !activeProject.versions) {
     return <Navigate to="/" replace />

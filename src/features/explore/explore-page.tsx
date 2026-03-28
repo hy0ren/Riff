@@ -16,6 +16,8 @@ import { DiscoverTrackCard } from './components/discover-track-card'
 import { ExploreHero } from './components/explore-hero'
 import { GenreRail } from './components/genre-rail'
 import { RemixChain } from './components/remix-chain'
+import { projectRoutes } from '@/features/projects/lib/project-routes'
+import { resolveProjectId } from '@/features/projects/lib/project-selectors'
 
 function SectionHeader({ title, action }: { title: string; action?: { label: string; onClick: () => void } }) {
   return (
@@ -65,7 +67,7 @@ export function ExplorePage() {
         <ExploreHero
           track={EXPLORE_FEATURED_TRACK}
           onPlay={() => {}}
-          onViewTrack={() => navigate(`/track/${EXPLORE_FEATURED_TRACK.id}`)}
+          onViewTrack={() => navigate(projectRoutes.details(resolveProjectId(EXPLORE_FEATURED_TRACK.id)))}
           onRemix={() => navigate('/create')}
           onStartRadio={() => navigate('/radio')}
         />
@@ -81,7 +83,7 @@ export function ExplorePage() {
                 onPlay={() => {}}
                 onSave={() => {}}
                 onRemix={() => navigate('/create')}
-                onOpen={() => navigate(`/track/${track.id}`)}
+                onOpen={() => navigate(projectRoutes.details(resolveProjectId(track.id)))}
               />
             ))}
           </div>
@@ -129,7 +131,7 @@ export function ExplorePage() {
                 onPlay={() => {}}
                 onSave={() => {}}
                 onRemix={() => navigate('/create')}
-                onOpen={() => navigate(`/track/${track.id}`)}
+                onOpen={() => navigate(projectRoutes.details(resolveProjectId(track.id)))}
               />
             ))}
           </div>

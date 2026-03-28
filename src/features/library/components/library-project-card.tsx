@@ -1,11 +1,10 @@
 import type { Project } from '@/domain/project'
 import { Badge } from '@/components/ui/badge'
 import { 
-  Music, Layers, Heart, Play, MoreHorizontal, Mic2, 
-  Guitar, FileText, Headphones, ListMusic, Sparkles, Globe
+  Music, Layers, Heart, Play, Mic2, Globe
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { relativeTime, sourceLabel, statusColor, statusLabel } from '../lib/library-utils'
+import { relativeTime, statusColor, statusLabel } from '../lib/library-utils'
 
 interface LibraryProjectCardProps {
   project: Project

@@ -1,5 +1,5 @@
 import type { Project, ProjectVersion } from '@/domain/project'
-import type { PracticeMode } from '../coach-page'
+import type { PracticeMode } from '../types/practice-session'
 import { Badge } from '@/components/ui/badge'
 import { Mic2, Guitar, Layers, Target, Activity, Music, Piano } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -11,6 +11,8 @@ interface PracticeContextPanelProps {
   onModeChange: (mode: PracticeMode) => void
   focusArea: string
   onFocusChange: (area: string) => void
+  selectedSection: string
+  onSectionChange: (section: string) => void
 }
 
 const MODES: { id: PracticeMode; icon: typeof Mic2; label: string }[] = [
@@ -28,7 +30,9 @@ export function PracticeContextPanel({
   practiceMode, 
   onModeChange,
   focusArea,
-  onFocusChange
+  onFocusChange,
+  selectedSection,
+  onSectionChange,
 }: PracticeContextPanelProps) {
   return (
     <div className="flex flex-col gap-6 p-5">
@@ -94,10 +98,11 @@ export function PracticeContextPanel({
         </div>
         <div className="flex flex-col gap-1.5">
           {SECTIONS.map((sec) => {
-            const isActive = sec === 'Chorus'
+            const isActive = sec === selectedSection
             return (
               <button 
                 key={sec}
+                onClick={() => onSectionChange(sec)}
                 className={cn(
                   'rounded-lg px-3.5 py-2.5 text-left text-sm font-medium transition-colors',
                   isActive
@@ -107,7 +112,7 @@ export function PracticeContextPanel({
                 style={isActive ? { border: '1px solid rgba(255,255,255,0.06)' } : undefined}
               >
                 {sec}
-                {sec === 'Chorus' && (
+                {sec === selectedSection && (
                   <span className="ml-2 text-[10px] font-mono text-[var(--riff-text-faint)]">1:00 – 1:30</span>
                 )}
               </button>

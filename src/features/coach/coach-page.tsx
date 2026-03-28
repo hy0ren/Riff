@@ -1,21 +1,44 @@
-import { useState } from 'react'
+import { useEffect } from 'react'
 import { PageFrame } from '@/components/layout/page-frame'
-import { RECENT_PROJECTS } from '@/mocks/mock-data'
+import { Navigate, useParams } from 'react-router-dom'
 import { PracticeContextPanel } from './components/practice-context-panel'
 import { LivePerformanceStage } from './components/live-performance-stage'
 import { CoachTranscriptPanel } from './components/coach-transcript-panel'
-
-export type PracticeMode = 'vocal' | 'humming' | 'guitar' | 'piano'
-export type SessionState = 'idle' | 'listening' | 'analyzing' | 'coaching' | 'paused'
+import { findProjectById, getProjectVersion, resolveProject } from '@/features/projects/lib/project-selectors'
+import { projectRoutes } from '@/features/projects/lib/project-routes'
+import { useProjectRouteContext } from '@/features/projects/hooks/use-project-route-context'
+import { usePracticeSessionStore } from './store/use-practice-session-store'
 
 export function CoachPage() {
-  const [activeProjectId] = useState<string>('proj-active-1')
-  const [sessionState, setSessionState] = useState<SessionState>('idle')
-  const [practiceMode, setPracticeMode] = useState<PracticeMode>('vocal')
-  const [focusArea, setFocusArea] = useState<string>('rhythm')
-  
-  const activeProject = RECENT_PROJECTS.find(p => p.id === activeProjectId) || RECENT_PROJECTS[0]
-  const activeVersion = activeProject.versions?.[activeProject.versions.length - 1]
+  const { projectId } = useParams()
+  const matchedProject = findProjectById(projectId)
+  const activeProject = resolveProject(projectId)
+  const activeVersion = getProjectVersion(activeProject)
+  const {
+    sessionState,
+    practiceMode,
+    focusArea,
+    selectedSection,
+    setTarget,
+    setSessionState,
+    setPracticeMode,
+    setFocusArea,
+    setSelectedSection,
+  } = usePracticeSessionStore()
+
+  useProjectRouteContext({
+    projectId: activeProject.id,
+    projectName: activeProject.title,
+    versionId: activeVersion?.id ?? null,
+  })
+
+  useEffect(() => {
+    setTarget(activeProject.id, activeVersion?.id ?? null)
+  }, [activeProject.id, activeVersion?.id, setTarget])
+
+  if (!matchedProject && projectId) {
+    return <Navigate to={projectRoutes.coach(activeProject.id)} replace />
+  }
 
   const handleToggleRehearsal = () => {
     if (sessionState === 'idle' || sessionState === 'paused') {
@@ -52,6 +75,8 @@ export function CoachPage() {
             onModeChange={setPracticeMode}
             focusArea={focusArea}
             onFocusChange={setFocusArea}
+            selectedSection={selectedSection}
+            onSectionChange={setSelectedSection}
           />
         </aside>
 

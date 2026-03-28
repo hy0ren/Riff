@@ -12,13 +12,20 @@ import {
   Compass
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { RECENT_PROJECTS, SUGGESTED_STATIONS, TRENDING_TRACKS } from '@/mocks/mock-data'
+import { SUGGESTED_STATIONS, TRENDING_TRACKS } from '@/mocks/mock-data'
 import { ProjectCard } from '@/components/shared/project-card'
 import { StationCard } from '@/components/shared/station-card'
 import { cn } from '@/lib/utils'
+import { projectRoutes } from '@/features/projects/lib/project-routes'
+import { getPrimaryProjectId } from '@/features/projects/lib/project-selectors'
+import { useProjectContextStore } from '@/features/projects/store/use-project-context-store'
+import { useProjectStore } from '@/features/projects/store/use-project-store'
 
 export function HomePage() {
   const navigate = useNavigate()
+  const activeProjectId = useProjectContextStore((state) => state.activeProjectId)
+  const recentProjects = useProjectStore((state) => state.projects)
+  const targetProjectId = activeProjectId ?? getPrimaryProjectId()
 
   return (
     <PageFrame className="pb-12">
@@ -51,7 +58,7 @@ export function HomePage() {
             <Button
               variant="ghost"
               className="h-12 px-6 rounded-xl font-semibold text-[var(--riff-text-secondary)] hover:bg-[var(--riff-surface-high)]"
-              onClick={() => navigate('/studio')}
+              onClick={() => navigate(projectRoutes.studio(targetProjectId))}
             >
               Open Studio
             </Button>
@@ -88,11 +95,11 @@ export function HomePage() {
               </Button>
             </div>
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-              {RECENT_PROJECTS.slice(0, 4).map(project => (
+              {recentProjects.slice(0, 4).map(project => (
                 <ProjectCard 
                   key={project.id} 
                   project={project} 
-                  onClick={() => navigate(`/track/${project.id}`)}
+                  onClick={() => navigate(projectRoutes.details(project.id))}
                 />
               ))}
             </div>
@@ -157,7 +164,7 @@ export function HomePage() {
             <Button 
               variant="outline" 
               className="w-full border-[#5233ff]/[0.2] hover:bg-[#5233ff]/[0.1] text-[#b0a1ff] font-bold"
-              onClick={() => navigate('/coach')}
+              onClick={() => navigate(projectRoutes.coach(targetProjectId))}
             >
               Start Practice
             </Button>

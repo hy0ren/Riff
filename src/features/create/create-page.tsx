@@ -14,12 +14,15 @@ import {
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { SourceCard } from '@/components/shared/source-card'
-import type { SourceInputType } from '@/domain/source-input'
+import type { SourceSelectionType } from '@/domain/source-input'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { projectRoutes } from '@/features/projects/lib/project-routes'
+import { getPrimaryProjectId } from '@/features/projects/lib/project-selectors'
+import { useProjectContextStore } from '@/features/projects/store/use-project-context-store'
 
 interface SourceOption {
-  type: SourceInputType
+  type: SourceSelectionType
   label: string
   description: string
   icon: any
@@ -72,9 +75,11 @@ const SOURCE_OPTIONS: SourceOption[] = [
 
 export function CreatePage() {
   const navigate = useNavigate()
-  const [selectedTypes, setSelectedTypes] = useState<SourceInputType[]>([])
+  const [selectedTypes, setSelectedTypes] = useState<SourceSelectionType[]>([])
+  const activeProjectId = useProjectContextStore((state) => state.activeProjectId)
+  const targetProjectId = activeProjectId ?? getPrimaryProjectId()
 
-  const toggleSource = (type: SourceInputType) => {
+  const toggleSource = (type: SourceSelectionType) => {
     setSelectedTypes(prev => 
       prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]
     )
@@ -162,7 +167,7 @@ export function CreatePage() {
             <Button
               className="h-12 px-6 rounded-xl font-bold bg-[var(--riff-accent)] hover:bg-[var(--riff-accent-light)] transition-all shadow-[0_0_20px_var(--riff-glow)]"
               disabled={!hasSelection}
-              onClick={() => navigate('/studio')}
+              onClick={() => navigate(projectRoutes.studio(targetProjectId))}
             >
               Continue to Studio
               <ChevronRight className="ml-1 h-4 w-4" />

@@ -16,19 +16,15 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
+import { projectRoutes } from '@/features/projects/lib/project-routes'
+import { getPrimaryProjectId } from '@/features/projects/lib/project-selectors'
+import { useProjectContextStore } from '@/features/projects/store/use-project-context-store'
 
 interface NavItem {
   label: string
   path: string
   icon: React.ComponentType<{ className?: string }>
 }
-
-const primaryNav: NavItem[] = [
-  { label: 'Home', path: '/', icon: Home },
-  { label: 'Create', path: '/create', icon: PlusCircle },
-  { label: 'Studio', path: '/studio', icon: Mic },
-  { label: 'Coach', path: '/coach', icon: Dumbbell },
-]
 
 const platformNav: NavItem[] = [
   { label: 'Library', path: '/library', icon: Library },
@@ -99,6 +95,16 @@ function NavGroup({ items, label }: { items: NavItem[]; label?: string }) {
 }
 
 export function Sidebar() {
+  const activeProjectId = useProjectContextStore((state) => state.activeProjectId)
+  const projectId = activeProjectId ?? getPrimaryProjectId()
+
+  const primaryNav: NavItem[] = [
+    { label: 'Home', path: '/', icon: Home },
+    { label: 'Create', path: '/create', icon: PlusCircle },
+    { label: 'Studio', path: projectRoutes.studio(projectId), icon: Mic },
+    { label: 'Coach', path: projectRoutes.coach(projectId), icon: Dumbbell },
+  ]
+
   return (
     <nav className="flex h-full flex-col overflow-hidden">
       {/* Brand header */}

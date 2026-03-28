@@ -10,6 +10,7 @@ import { AssetTypeGrid } from './components/asset-type-grid'
 import { BundleSpotlight } from './components/bundle-spotlight'
 import { ExportHistory } from './components/export-history'
 import { ExportInspector } from './components/export-inspector'
+import { projectRoutes } from '@/features/projects/lib/project-routes'
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
@@ -38,8 +39,8 @@ export function ExportsPage() {
       onRegenerate={() => {}}
       onPreview={() => {}}
       onReveal={() => {}}
-      onOpenStudio={() => navigate('/studio')}
-      onOpenTrack={() => navigate(`/track/${EXPORT_ACTIVE_BUNDLE.projectId}`)}
+      onOpenStudio={() => navigate(projectRoutes.studio(EXPORT_ACTIVE_BUNDLE.projectId))}
+      onOpenTrack={() => navigate(projectRoutes.details(EXPORT_ACTIVE_BUNDLE.projectId))}
     />
   )
 

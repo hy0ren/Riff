@@ -1,10 +1,10 @@
-import type { SourceInputType } from '@/domain/source-input'
+import type { SourceSelectionType } from '@/domain/source-input'
 import { CheckCircle2 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface SourceCardProps {
-  type: SourceInputType
+  type: SourceSelectionType
   label: string
   description: string
   icon: LucideIcon

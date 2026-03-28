@@ -26,11 +26,13 @@ export interface ExportAsset {
 export interface ExportBundle {
   id: string
   projectId: string
+  versionId?: string
   projectTitle: string
   projectCoverUrl?: string
   status: ExportStatus
   assets: ExportAsset[]
   totalSize: string
+  bundlePreset?: 'full' | 'audio-only' | 'practice-kit' | 'custom'
   createdAt: string
   lastRegenerated: string
 }

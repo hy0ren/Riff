@@ -1,7 +1,11 @@
-import { Play, Pause, SkipForward, SkipBack, Share, Download, Settings2, Guitar } from 'lucide-react'
+import { Play, Share, Settings2, Guitar } from 'lucide-react'
 import type { Project, ProjectVersion } from '@/domain/project'
 import { Badge } from '@/components/ui/badge'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { useNavigate } from 'react-router-dom'
+import { projectRoutes } from '@/features/projects/lib/project-routes'
+import { usePlaybackStore } from '@/features/playback/store/use-playback-store'
+import { toProjectVersionTrack } from '@/features/playback/lib/playable-track'
 
 interface TrackHeroProps {
   project: Project
@@ -9,6 +13,9 @@ interface TrackHeroProps {
 }
 
 export function TrackHero({ project, activeVersion }: TrackHeroProps) {
+  const navigate = useNavigate()
+  const setTrack = usePlaybackStore((state) => state.setTrack)
+
   return (
     <div className="relative w-full border-b border-[var(--riff-surface-highest)] bg-gradient-to-b from-[var(--riff-surface-low)] to-[var(--riff-surface)] pt-12 pb-8 px-8 xl:px-12">
       
@@ -47,12 +54,20 @@ export function TrackHero({ project, activeVersion }: TrackHeroProps) {
                 Change Version
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-56 bg-[var(--riff-surface-low)] border-[var(--riff-surface-highest)]">
-                {project.versions?.map((v) => (
-                  <DropdownMenuItem key={v.id} className="flex justify-between items-center py-2 cursor-pointer focus:bg-[var(--riff-surface-high)]">
-                    <span className={`text-sm ${v.isActive ? 'text-[var(--riff-accent-light)] font-semibold' : 'text-[var(--riff-text-primary)]'}`}>{v.name}</span>
-                    {v.isActive && <div className="h-1.5 w-1.5 rounded-full bg-[var(--riff-accent)]"></div>}
-                  </DropdownMenuItem>
-                ))}
+                {project.versions?.map((v) => {
+                  const isSelectedVersion = v.id === activeVersion.id
+
+                  return (
+                    <DropdownMenuItem
+                      key={v.id}
+                      onClick={() => navigate(projectRoutes.version(project.id, v.id))}
+                      className="flex justify-between items-center py-2 cursor-pointer focus:bg-[var(--riff-surface-high)]"
+                    >
+                      <span className={`text-sm ${isSelectedVersion ? 'text-[var(--riff-accent-light)] font-semibold' : 'text-[var(--riff-text-primary)]'}`}>{v.name}</span>
+                      {isSelectedVersion && <div className="h-1.5 w-1.5 rounded-full bg-[var(--riff-accent)]"></div>}
+                    </DropdownMenuItem>
+                  )
+                })}
               </DropdownMenuContent>
             </DropdownMenu>
 
@@ -65,7 +80,10 @@ export function TrackHero({ project, activeVersion }: TrackHeroProps) {
           <div className="flex items-center gap-8">
             {/* Primary Transport */}
             <div className="flex items-center gap-4">
-              <button className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[var(--riff-accent)] to-[var(--riff-accent-focus)] text-white shadow-[0_0_20px_rgba(18,117,226,0.2)] transition-transform hover:scale-105 active:scale-95">
+              <button
+                onClick={() => setTrack(toProjectVersionTrack(project, activeVersion))}
+                className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[var(--riff-accent)] to-[var(--riff-accent-focus)] text-white shadow-[0_0_20px_rgba(18,117,226,0.2)] transition-transform hover:scale-105 active:scale-95"
+              >
                 <Play className="h-6 w-6 ml-1 fill-current" />
               </button>
             </div>
@@ -91,13 +109,20 @@ export function TrackHero({ project, activeVersion }: TrackHeroProps) {
             
             {/* Action Buttons */}
             <div className="flex items-center gap-3">
-              <button className="flex items-center justify-center h-10 w-10 rounded-full border border-[var(--riff-surface-highest)] bg-[var(--riff-surface)] text-[var(--riff-text-secondary)] hover:text-white hover:border-[var(--riff-text-muted)] transition-all" title="Practice in Coach">
+              <button
+                onClick={() => navigate(projectRoutes.coach(project.id))}
+                className="flex items-center justify-center h-10 w-10 rounded-full border border-[var(--riff-surface-highest)] bg-[var(--riff-surface)] text-[var(--riff-text-secondary)] hover:text-white hover:border-[var(--riff-text-muted)] transition-all"
+                title="Practice in Coach"
+              >
                 <Guitar className="h-4 w-4" />
               </button>
               <button className="flex items-center justify-center h-10 w-10 rounded-full border border-[var(--riff-surface-highest)] bg-[var(--riff-surface)] text-[var(--riff-text-secondary)] hover:text-white hover:border-[var(--riff-text-muted)] transition-all" title="Share Project">
                 <Share className="h-4 w-4" />
               </button>
-              <button className="flex items-center gap-2 h-10 px-4 rounded-full border border-[var(--riff-surface-highest)] bg-[var(--riff-surface-high)] text-[var(--riff-text-primary)] hover:bg-[var(--riff-surface-highest)] transition-all font-medium text-sm">
+              <button
+                onClick={() => navigate(projectRoutes.studio(project.id))}
+                className="flex items-center gap-2 h-10 px-4 rounded-full border border-[var(--riff-surface-highest)] bg-[var(--riff-surface-high)] text-[var(--riff-text-primary)] hover:bg-[var(--riff-surface-highest)] transition-all font-medium text-sm"
+              >
                 Open in Studio
               </button>
             </div>

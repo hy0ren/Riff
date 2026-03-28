@@ -1,11 +1,11 @@
 import type { ProjectVersion } from '@/domain/project'
-import { Download, Activity, Music } from 'lucide-react'
+import { Download, Activity } from 'lucide-react'
 
 interface MelodyTabProps {
   version: ProjectVersion
 }
 
-export function MelodyTab({ version }: MelodyTabProps) {
+export function MelodyTab({ version: _version }: MelodyTabProps) {
   return (
     <div className="flex flex-col gap-8 max-w-4xl">
       <div className="flex justify-between items-center mb-4">

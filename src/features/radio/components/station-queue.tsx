@@ -83,7 +83,7 @@ export function StationQueue({
       {/* Queue list */}
       <ScrollArea className="max-h-[340px]">
         <div className="py-1">
-          {items.map((item, index) => (
+          {items.map((item) => (
             <QueueRow
               key={item.id}
               item={item}

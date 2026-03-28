@@ -1,4 +1,4 @@
-import type { SessionState } from '../coach-page'
+import type { SessionState } from '../types/practice-session'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Activity, MessageSquare, CheckCircle2, History } from 'lucide-react'
 

@@ -1,11 +1,12 @@
 import type { Project } from '@/domain/project'
 import { Badge } from '@/components/ui/badge'
 import { 
-  Music, Layers, Heart, Play, Mic2, Globe, ExternalLink,
-  Guitar, Headphones, Download, Pencil
+  Music, Layers, Heart, Mic2, Globe, ExternalLink,
+  Headphones, Download, Pencil
 } from 'lucide-react'
 import { relativeTime, sourceLabel, statusColor, statusLabel } from '../lib/library-utils'
 import { useNavigate } from 'react-router-dom'
+import { projectRoutes } from '@/features/projects/lib/project-routes'
 
 interface LibraryInspectorProps {
   project: Project
@@ -76,19 +77,19 @@ export function LibraryInspector({ project }: LibraryInspectorProps) {
       {/* Quick Actions */}
       <div className="mt-auto flex flex-col gap-2 pt-4 border-t border-[var(--riff-surface-highest)]">
         <button 
-          onClick={() => navigate('/studio')}
+          onClick={() => navigate(projectRoutes.studio(project.id))}
           className="flex items-center gap-3 w-full px-4 py-3 rounded-lg bg-gradient-to-r from-[var(--riff-accent)] to-[var(--riff-accent-focus)] text-white font-bold text-sm tracking-wide shadow-lg hover:shadow-xl transition-all active:scale-[0.98]"
         >
           <Pencil className="h-4 w-4" /> Open in Studio
         </button>
         <button 
-          onClick={() => navigate(`/track/${project.id}`)}
+          onClick={() => navigate(projectRoutes.details(project.id))}
           className="flex items-center gap-3 w-full px-4 py-3 rounded-lg bg-[var(--riff-surface-highest)] text-[var(--riff-text-primary)] font-medium text-sm hover:bg-[var(--riff-surface-high)] transition-colors"
         >
           <ExternalLink className="h-4 w-4" /> Track Details
         </button>
         <button 
-          onClick={() => navigate('/coach')}
+          onClick={() => navigate(projectRoutes.coach(project.id))}
           className="flex items-center gap-3 w-full px-4 py-3 rounded-lg bg-[var(--riff-surface-highest)] text-[var(--riff-text-primary)] font-medium text-sm hover:bg-[var(--riff-surface-high)] transition-colors"
         >
           <Headphones className="h-4 w-4" /> Practice this Song

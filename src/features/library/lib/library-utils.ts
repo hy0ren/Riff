@@ -1,4 +1,4 @@
-import type { Project, SourceType } from '@/domain/project'
+import type { SourceType } from '@/domain/project'
 
 export function relativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime()

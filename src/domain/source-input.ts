@@ -1,21 +1,95 @@
-export type SourceInputType = 
-  | 'hum' 
-  | 'riff' 
-  | 'lyrics' 
-  | 'chords' 
-  | 'sheet' 
-  | 'spotify' 
+export type SourceSelectionType =
+  | 'hum'
+  | 'riff'
+  | 'lyrics'
+  | 'chords'
+  | 'sheet'
+  | 'spotify'
   | 'remix'
 
-export interface SourceInput {
+export type SourceInputKind =
+  | 'hum'
+  | 'sung_melody'
+  | 'riff_audio'
+  | 'typed_notes'
+  | 'chord_progression'
+  | 'sheet_music'
+  | 'lyrics'
+  | 'remix_source'
+  | 'spotify_track_reference'
+  | 'spotify_playlist_reference'
+
+export type SourceInputRole =
+  | 'melodic'
+  | 'harmonic'
+  | 'lyrical'
+  | 'structural'
+  | 'reference'
+  | 'remix'
+
+export type SourceInputProvenance = 'recorded' | 'uploaded' | 'typed' | 'spotify' | 'project'
+
+interface SourceInputBase {
   id: string
-  type: SourceInputType
+  projectId?: string
+  type: SourceInputKind
   label: string
   description: string
-  iconName: string // Lucide icon reference
+  iconName: string
+  createdAt: string
+  role: SourceInputRole
+  provenance: SourceInputProvenance
+  isReference: boolean
+  interpretationStatus?: 'pending' | 'interpreted' | 'attached'
 }
 
+export interface AudioSourceInput extends SourceInputBase {
+  type: 'hum' | 'sung_melody' | 'riff_audio' | 'remix_source'
+  durationSeconds?: number
+  audioUrl?: string
+}
+
+export interface TextSourceInput extends SourceInputBase {
+  type: 'typed_notes' | 'chord_progression' | 'lyrics'
+  text: string
+}
+
+export interface SheetSourceInput extends SourceInputBase {
+  type: 'sheet_music'
+  fileName?: string
+  fileFormat?: 'pdf' | 'midi' | 'musicxml'
+}
+
+export interface SpotifyTrackReferenceInput extends SourceInputBase {
+  type: 'spotify_track_reference'
+  spotifyUri: string
+  artistName?: string
+}
+
+export interface SpotifyPlaylistReferenceInput extends SourceInputBase {
+  type: 'spotify_playlist_reference'
+  spotifyUri: string
+  playlistName: string
+}
+
+export type SourceInput =
+  | AudioSourceInput
+  | TextSourceInput
+  | SheetSourceInput
+  | SpotifyTrackReferenceInput
+  | SpotifyPlaylistReferenceInput
+
 export interface SelectionCanvas {
-  selectedTypes: SourceInputType[]
+  selectedTypes: SourceSelectionType[]
   projectName?: string
+}
+
+export const selectionTypeToSourceKinds: Record<SourceSelectionType, SourceInputKind[]> = {
+  hum: ['hum', 'sung_melody'],
+  riff: ['riff_audio'],
+  lyrics: ['lyrics', 'typed_notes'],
+  chords: ['chord_progression'],
+  sheet: ['sheet_music'],
+  spotify: ['spotify_track_reference', 'spotify_playlist_reference'],
+  remix: ['remix_source'],
 }
