@@ -1,8 +1,9 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/dm-sans";
-@import "@fontsource-variable/geist";
+@import "@fontsource-variable/fraunces";
+@import "@fontsource-variable/space-grotesk";
+@import "@fontsource/ibm-plex-mono";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -14,9 +15,10 @@
 
 @theme inline {
     /* Typography */
-    --font-display: 'DM Sans Variable', 'DM Sans', system-ui, sans-serif;
-    --font-sans: 'Geist Variable', 'Geist', system-ui, sans-serif;
+    --font-display: 'Fraunces Variable', 'Fraunces', Georgia, serif;
+    --font-sans: 'Space Grotesk Variable', 'Space Grotesk', system-ui, sans-serif;
     --font-heading: var(--font-display);
+    --font-mono: 'IBM Plex Mono', 'SFMono-Regular', ui-monospace, monospace;
 
     /* Sidebar tokens */
     --color-sidebar-ring: var(--sidebar-ring);
@@ -152,12 +154,16 @@
     html {
         @apply font-sans antialiased;
         color-scheme: dark;
+        text-rendering: optimizeLegibility;
+        font-feature-settings: "liga" 1, "kern" 1;
     }
 
     body {
         @apply bg-background text-foreground;
         overflow: hidden;
         /* Prevent body scroll — each content region scrolls independently */
+        font-family: var(--font-sans);
+        letter-spacing: -0.01em;
     }
 
     /* Tauri: title bar drag region */
@@ -197,12 +203,30 @@
         background: var(--riff-text-muted);
     }
 
-    /* Typography scale — display headlines use DM Sans */
+    /* Typography scale — editorial display + sharper UI sans */
     h1, h2, h3 {
         font-family: var(--font-display);
-        font-weight: 600;
-        letter-spacing: -0.02em;
+        font-weight: 650;
+        letter-spacing: -0.035em;
+        line-height: 0.98;
         color: var(--riff-text-primary);
+        font-variation-settings: "opsz" 72, "SOFT" 18, "WONK" 0;
+    }
+
+    h4, h5, h6,
+    button,
+    input,
+    textarea,
+    select,
+    label {
+        font-family: var(--font-sans);
+    }
+
+    code,
+    kbd,
+    samp,
+    pre {
+        font-family: var(--font-mono);
     }
 }
 
@@ -256,6 +280,18 @@
     }
     .text-riff-accent {
         color: var(--riff-accent-light);
+    }
+
+    .riff-display-tight {
+        font-family: var(--font-display);
+        letter-spacing: -0.045em;
+        font-variation-settings: "opsz" 96, "SOFT" 10, "WONK" 0;
+    }
+
+    .riff-ui-caps {
+        font-family: var(--font-sans);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
     }
 
     /* Skeleton shimmer — shared loading placeholders */

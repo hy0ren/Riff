@@ -562,8 +562,10 @@ export const useStudioStore = create<StudioState>((set) => ({
     try {
       const providerResult = await generateTrack({
         projectId,
+        projectTitle: committedProject.title,
         blueprint: generationBlueprint,
         sourceSet,
+        sourceInputs: getSourceInputsForSet(committedProject, sourceSet),
         sourceSummary: interpretation.summary,
         kind,
         refinementPrompt: quickRefinementText || undefined,

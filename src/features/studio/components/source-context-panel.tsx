@@ -9,6 +9,7 @@ import {
   RefreshCcw,
   Share2,
 } from 'lucide-react'
+import type { InstrumentPlan } from '@/domain/blueprint'
 import type { InterpretationSnapshot } from '@/domain/interpretation'
 import type { SourceInput } from '@/domain/source-input'
 import type { SourceInfluence, SourceSet } from '@/domain/source-set'
@@ -24,6 +25,7 @@ interface SourceContextPanelProps {
   sourceSet?: SourceSet
   interpretation?: InterpretationSnapshot
   interpretationStatus: 'idle' | 'refreshing'
+  draftInstruments?: InstrumentPlan
   onRefreshInterpretation: () => void
   onToggleSourceEnabled: (sourceInputId: string) => void
   onSourceWeightChange: (sourceInputId: string, weight: number) => void
@@ -33,6 +35,7 @@ interface SourceContextPanelProps {
     field: 'label' | 'description' | 'text',
     value: string,
   ) => void
+  onInstrumentToggle?: (instrument: string, active: boolean) => void
 }
 
 function getSourceIcon(sourceInput: SourceInput) {
@@ -186,11 +189,13 @@ export function SourceContextPanel({
   sourceSet,
   interpretation,
   interpretationStatus,
+  draftInstruments,
   onRefreshInterpretation,
   onToggleSourceEnabled,
   onSourceWeightChange,
   onSourceInfluenceChange,
   onSourceFieldChange,
+  onInstrumentToggle,
 }: SourceContextPanelProps) {
   const items = [...(sourceSet?.items ?? [])].sort((left, right) => left.order - right.order)
   const sourceById = new Map(sourceInputs.map((sourceInput) => [sourceInput.id, sourceInput]))
@@ -346,21 +351,29 @@ export function SourceContextPanel({
         </div>
 
         <div className="rounded-lg bg-[var(--riff-surface-low)] p-3">
-          <p className="mb-2 text-xs text-[var(--riff-text-muted)]">Instrumentation Lean</p>
+          <p className="mb-2 text-xs text-[var(--riff-text-muted)]">Instrumentation</p>
           <div className="flex flex-wrap gap-1.5">
-            {Object.entries(interpretation?.derivedBlueprint.instruments ?? {})
-              .filter(([, active]) => Boolean(active))
-              .map(([instrument]) => (
-                <span
+            {(() => {
+              const instruments = draftInstruments ?? interpretation?.derivedBlueprint.instruments ?? {}
+              const entries = Object.entries(instruments)
+              if (!entries.length) {
+                return <span className="text-xs text-[var(--riff-text-muted)]">No instrumentation signal yet.</span>
+              }
+              return entries.map(([instrument, active]) => (
+                <button
                   key={instrument}
-                  className="inline-flex items-center rounded-md bg-[var(--riff-surface-highest)] px-2 py-0.5 text-xs text-[var(--riff-text-primary)]"
+                  type="button"
+                  onClick={() => onInstrumentToggle?.(instrument, !active)}
+                  className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs capitalize transition-colors ${
+                    active
+                      ? 'bg-[var(--riff-accent)]/20 text-[var(--riff-accent-light)] ring-1 ring-[var(--riff-accent)]/30'
+                      : 'bg-[var(--riff-surface-highest)] text-[var(--riff-text-muted)] hover:text-[var(--riff-text-secondary)]'
+                  }`}
                 >
                   {instrument}
-                </span>
-              ))}
-            {!Object.values(interpretation?.derivedBlueprint.instruments ?? {}).some(Boolean) && (
-              <span className="text-xs text-[var(--riff-text-muted)]">No instrumentation signal yet.</span>
-            )}
+                </button>
+              ))
+            })()}
           </div>
         </div>
 

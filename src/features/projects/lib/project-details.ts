@@ -98,6 +98,10 @@ function buildDerivedStructure(
   blueprint?: Blueprint,
 ): TrackStructureNode[] | undefined {
   const chordSuggestion = getChordSuggestion(project)
+  const chordSource = project.sourceInputs.find(
+    (sourceInput): sourceInput is typeof sourceInput & { type: 'chord_progression'; text: string } =>
+      sourceInput.type === 'chord_progression' && 'text' in sourceInput,
+  )
   const lyricSections = getVersionLyrics(project, version)
   const totalDuration =
     version.duration ||
@@ -144,7 +148,7 @@ function buildDerivedStructure(
         duration: sectionDuration,
         chords: entry.chords.length
           ? entry.chords
-          : parseChordTokens(project.sourceInputs.find((sourceInput) => sourceInput.type === 'chord_progression' && 'text' in sourceInput)?.text ?? ''),
+          : parseChordTokens(chordSource?.text ?? ''),
       }
       elapsed += sectionDuration
       return node

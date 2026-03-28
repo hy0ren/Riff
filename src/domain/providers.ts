@@ -91,8 +91,10 @@ export interface GeminiTrackSummaryResult extends ProviderModelMetadata {
 
 export interface LyriaGenerationRequest {
   projectId: string
+  projectTitle?: string
   blueprint: Blueprint
   sourceSet: SourceSet
+  sourceInputs?: SourceInput[]
   sourceSummary: string
   kind: TrackVersionKind
   refinementPrompt?: string
@@ -113,6 +115,8 @@ export interface SpotifyAuthState {
   expiresAt?: string
   codeVerifier?: string
   state?: string
+  origin?: string
+  startedAt?: string
 }
 
 export interface SpotifyProfile {

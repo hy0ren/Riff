@@ -1,7 +1,6 @@
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
-import { ChevronDown } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { useSettingsStore, type TypographyScale } from '../store/use-settings-store'
 
 function SettingRow({
   label,
@@ -10,7 +9,7 @@ function SettingRow({
 }: {
   label: string
   description: string
-  control: ReactNode
+  control: React.ReactNode
 }) {
   return (
     <div className="flex flex-col gap-3 border-b border-white/[0.06] py-4 last:border-b-0 last:pb-0 first:pt-0 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
@@ -23,9 +22,15 @@ function SettingRow({
   )
 }
 
+const TYPOGRAPHY_LABELS: Record<TypographyScale, string> = {
+  compact: 'Compact',
+  default: 'Default',
+  comfortable: 'Comfortable',
+}
+
 export function AppearanceSection() {
-  const [compactSidebar, setCompactSidebar] = useState(true)
-  const [reduceMotion, setReduceMotion] = useState(false)
+  const appearance = useSettingsStore((state) => state.appearance)
+  const setAppearance = useSettingsStore((state) => state.setAppearance)
 
   return (
     <section id="appearance" className="space-y-6">
@@ -34,7 +39,7 @@ export function AppearanceSection() {
           Appearance
         </h3>
         <p className="mt-1 text-sm text-[var(--riff-text-muted)]">
-          Visual density, motion, and accent
+          Density, motion, and reading comfort across the app shell.
         </p>
       </div>
 
@@ -44,37 +49,26 @@ export function AppearanceSection() {
       >
         <SettingRow
           label="Theme"
-          description="Riff ships in Obsidian dark; light themes are not offered."
+          description="Riff stays in its dark desktop palette to keep the product coherent."
           control={
-            <Badge variant="outline" className="max-w-full whitespace-normal text-left text-[11px] leading-snug">
-              Dark Only — Obsidian is the brand
+            <Badge
+              variant="outline"
+              className="max-w-full whitespace-normal text-left text-[11px] leading-snug"
+            >
+              Obsidian dark only
             </Badge>
           }
         />
         <SettingRow
-          label="Accent color"
-          description="Brand accent used for focus rings, links, and highlights."
-          control={
-            <div className="flex items-center gap-2">
-              <div
-                className="size-9 rounded-lg border border-white/10 shadow-inner"
-                style={{ backgroundColor: 'var(--riff-accent)' }}
-                aria-hidden
-              />
-              <span className="font-mono text-xs text-[var(--riff-text-faint)]">--riff-accent</span>
-            </div>
-          }
-        />
-        <SettingRow
           label="Sidebar density"
-          description="Tighter spacing and smaller type in the app chrome."
+          description="Tighten navigation spacing for a more compact desktop shell."
           control={
             <div className="flex items-center gap-2">
               <span className="text-xs text-[var(--riff-text-muted)]">Compact</span>
               <Switch
                 size="sm"
-                checked={compactSidebar}
-                onCheckedChange={setCompactSidebar}
+                checked={appearance.compactSidebar}
+                onCheckedChange={(value) => setAppearance({ compactSidebar: value })}
                 aria-label="Compact sidebar"
               />
             </div>
@@ -82,27 +76,34 @@ export function AppearanceSection() {
         />
         <SettingRow
           label="Reduce motion"
-          description="Limits transitions and decorative animation."
+          description="Cuts down decorative animation and smooth scrolling across the app."
           control={
             <Switch
               size="sm"
-              checked={reduceMotion}
-              onCheckedChange={setReduceMotion}
+              checked={appearance.reduceMotion}
+              onCheckedChange={(value) => setAppearance({ reduceMotion: value })}
               aria-label="Reduce motion"
             />
           }
         />
         <SettingRow
           label="Typography scale"
-          description="Adjusts base reading size across the app."
+          description="Adjust the overall reading scale without changing the design system."
           control={
-            <div
-              role="presentation"
-              className="flex h-8 min-w-[160px] cursor-default items-center justify-between rounded-lg border border-white/[0.08] bg-[var(--riff-surface-mid)] px-2.5 text-sm text-[var(--riff-text-primary)]"
+            <select
+              value={appearance.typographyScale}
+              onChange={(event) =>
+                setAppearance({ typographyScale: event.target.value as TypographyScale })
+              }
+              className="h-9 min-w-[170px] rounded-lg border border-white/[0.08] bg-[var(--riff-surface-mid)] px-3 text-sm text-[var(--riff-text-primary)] outline-none"
+              aria-label="Typography scale"
             >
-              <span>Default</span>
-              <ChevronDown className="size-4 text-[var(--riff-text-muted)]" aria-hidden />
-            </div>
+              {Object.entries(TYPOGRAPHY_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
           }
         />
       </div>

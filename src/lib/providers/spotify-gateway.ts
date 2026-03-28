@@ -17,6 +17,7 @@ import {
 import { readStorageJson, removeStorageValue, writeStorageJson } from '@/lib/persistence/local-storage'
 
 const SPOTIFY_PENDING_AUTH_STORAGE_KEY = 'riff.spotify.pending-auth'
+const SPOTIFY_STATE_PREFIX = 'riff.'
 
 function canUseSessionStorage() {
   return typeof window !== 'undefined' && typeof window.sessionStorage !== 'undefined'
@@ -76,21 +77,91 @@ export function clearPendingSpotifyAuth() {
   clearSessionPendingAuth()
 }
 
+function canUseWindowLocation() {
+  return typeof window !== 'undefined' && typeof window.location !== 'undefined'
+}
+
+function encodeStatePayload(payload: {
+  requestState: string
+  codeVerifier: string
+  origin?: string
+  startedAt: string
+}): string {
+  const json = JSON.stringify(payload)
+  return `${SPOTIFY_STATE_PREFIX}${btoa(json)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '')}`
+}
+
+function decodeBase64Url(value: string): string | null {
+  try {
+    const normalized = value.replace(/-/g, '+').replace(/_/g, '/')
+    const padded = normalized + '='.repeat((4 - (normalized.length % 4 || 4)) % 4)
+    return atob(padded)
+  } catch {
+    return null
+  }
+}
+
+export function decodeSpotifyStatePayload(state: string | null | undefined): SpotifyAuthState | undefined {
+  if (!state || !state.startsWith(SPOTIFY_STATE_PREFIX)) {
+    return undefined
+  }
+
+  const encodedPayload = state.slice(SPOTIFY_STATE_PREFIX.length)
+  const decoded = decodeBase64Url(encodedPayload)
+  if (!decoded) {
+    return undefined
+  }
+
+  try {
+    const payload = JSON.parse(decoded) as {
+      codeVerifier?: string
+      origin?: string
+      startedAt?: string
+    }
+
+    if (!payload.codeVerifier) {
+      return undefined
+    }
+
+    return {
+      codeVerifier: payload.codeVerifier,
+      state,
+      origin: payload.origin,
+      startedAt: payload.startedAt,
+    }
+  } catch {
+    return undefined
+  }
+}
+
 export async function beginSpotifyAuthorization(): Promise<{
   authorizeUrl: string
   pendingAuth: SpotifyAuthState
 }> {
   const challenge = await createSpotifyPkceChallenge()
+  const startedAt = new Date().toISOString()
+  const origin = canUseWindowLocation() ? window.location.origin : undefined
+  const callbackState = encodeStatePayload({
+    requestState: challenge.state,
+    codeVerifier: challenge.codeVerifier,
+    origin,
+    startedAt,
+  })
   const pendingAuth: SpotifyAuthState = {
     codeVerifier: challenge.codeVerifier,
-    state: challenge.state,
+    state: callbackState,
+    origin,
+    startedAt,
   }
   persistPendingSpotifyAuth(pendingAuth)
 
   return {
     authorizeUrl: createSpotifyAuthorizeUrl({
       codeChallenge: challenge.codeChallenge,
-      state: challenge.state,
+      state: callbackState,
     }),
     pendingAuth,
   }

@@ -203,14 +203,17 @@ export function createBlueprintDraft({
   draft.instruments = {
     ...DEFAULT_INSTRUMENTS,
     ...draft.instruments,
-    ...interpretation.derivedBlueprint.instruments,
   }
 
   for (const instrumentField of INSTRUMENT_FIELDS) {
     const originField = getInstrumentFieldKey(instrumentField)
     const inferredValue = interpretation.derivedBlueprint.instruments?.[instrumentField]
 
-    if (!draft.lockedFields.includes(originField) && inferredValue !== undefined) {
+    if (draft.lockedFields.includes(originField)) {
+      continue
+    }
+
+    if (inferredValue !== undefined) {
       draft.instruments[instrumentField] = inferredValue
       setOrigin(draft.origins, originField, 'inferred')
     } else {

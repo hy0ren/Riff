@@ -37,6 +37,7 @@ const utilityNav: NavItem[] = [
 ]
 
 function SidebarNavItem({ item }: { item: NavItem }) {
+function SidebarNavItem({ item, compact }: { item: NavItem; compact: boolean }) {
   const location = useLocation()
   const isActive = item.path === '/'
     ? location.pathname === '/'
@@ -48,7 +49,8 @@ function SidebarNavItem({ item }: { item: NavItem }) {
         <NavLink
           to={item.path}
           className={cn(
-            'group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150',
+            'group relative flex items-center rounded-lg font-medium transition-all duration-150',
+            compact ? 'gap-2.5 px-2.5 py-1.5 text-[13px]' : 'gap-3 px-3 py-2 text-sm',
             isActive
               ? 'text-[var(--riff-accent-light)]'
               : 'text-[var(--riff-text-secondary)] hover:text-[var(--riff-text-primary)]'
@@ -64,7 +66,7 @@ function SidebarNavItem({ item }: { item: NavItem }) {
           )}
 
           <item.icon className={cn(
-            'h-[18px] w-[18px] shrink-0 transition-colors',
+            cn('shrink-0 transition-colors', compact ? 'h-4 w-4' : 'h-[18px] w-[18px]'),
             isActive ? 'text-[var(--riff-accent-light)]' : 'text-[var(--riff-text-muted)] group-hover:text-[var(--riff-text-secondary)]'
           )} />
 
@@ -78,22 +80,33 @@ function SidebarNavItem({ item }: { item: NavItem }) {
   )
 }
 
-function NavGroup({ items, label }: { items: NavItem[]; label?: string }) {
+function NavGroup({
+  items,
+  label,
+  compact,
+}: {
+  items: NavItem[]
+  label?: string
+  compact: boolean
+}) {
   return (
     <div className="flex flex-col gap-0.5">
       {label && (
-        <span className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--riff-text-faint)]">
+        <span className={cn(
+          'mb-1 font-semibold uppercase tracking-[0.08em] text-[var(--riff-text-faint)]',
+          compact ? 'px-2.5 text-[9px]' : 'px-3 text-[10px]',
+        )}>
           {label}
         </span>
       )}
       {items.map((item) => (
-        <SidebarNavItem key={item.path} item={item} />
+        <SidebarNavItem key={item.path} item={item} compact={compact} />
       ))}
     </div>
   )
 }
 
-export function Sidebar() {
+export function Sidebar({ compact = false }: { compact?: boolean }) {
   const activeProjectId = useProjectContextStore((state) => state.activeProjectId)
   const projectId = activeProjectId ?? getPrimaryProjectId()
 
@@ -107,7 +120,7 @@ export function Sidebar() {
   return (
     <nav className="flex h-full flex-col overflow-hidden">
       {/* Brand header */}
-      <div className="flex items-center gap-2.5 px-5 pt-5 pb-6">
+      <div className={cn('flex items-center gap-2.5', compact ? 'px-4 pt-4 pb-5' : 'px-5 pt-5 pb-6')}>
         {/* Logo mark — stylized waveform */}
         <div
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl overflow-hidden"
@@ -125,19 +138,19 @@ export function Sidebar() {
       </div>
 
       {/* Primary navigation — creation workflow */}
-      <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-3">
-        <NavGroup items={primaryNav} />
+      <div className={cn('flex flex-1 flex-col gap-6 overflow-y-auto', compact ? 'px-2.5' : 'px-3')}>
+        <NavGroup items={primaryNav} compact={compact} />
 
         {/* Spacer + subtle tonal shift */}
         <div className="mx-2 h-px" style={{ background: 'rgba(255,255,255,0.04)' }} />
 
-        <NavGroup items={platformNav} label="Platform" />
+        <NavGroup items={platformNav} label="Platform" compact={compact} />
       </div>
 
       {/* Utility — pinned to bottom */}
-      <div className="px-3 pb-4 pt-2">
+      <div className={cn(compact ? 'px-2.5 pb-3 pt-2' : 'px-3 pb-4 pt-2')}>
         <div className="mx-2 mb-2 h-px" style={{ background: 'rgba(255,255,255,0.04)' }} />
-        <NavGroup items={utilityNav} />
+        <NavGroup items={utilityNav} compact={compact} />
       </div>
     </nav>
   )

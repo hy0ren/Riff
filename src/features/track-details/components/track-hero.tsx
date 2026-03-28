@@ -78,7 +78,7 @@ export function TrackHero({ project, activeVersion }: TrackHeroProps) {
 
           </div>
 
-          <h1 className="font-display text-5xl font-bold tracking-tight text-[var(--riff-text-primary)] mb-6 truncate">
+          <h1 className="riff-display-tight font-display text-5xl font-bold tracking-tight text-[var(--riff-text-primary)] mb-6 truncate">
             {project.title}
           </h1>
 

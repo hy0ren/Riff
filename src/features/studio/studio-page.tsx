@@ -14,6 +14,7 @@ import {
   useResolvedProject,
 } from '@/features/projects/lib/project-selectors'
 import { useProjectRouteContext } from '@/features/projects/hooks/use-project-route-context'
+import type { BlueprintDraftField } from '@/domain/blueprint-draft'
 import { useStudioStore } from './store/use-studio-store'
 
 export function StudioPage() {
@@ -120,6 +121,7 @@ export function StudioPage() {
             sourceSet={activeProject.sourceSets.find((sourceSet) => sourceSet.id === selectedSourceSetId) ?? activeSourceSet}
             interpretation={activeInterpretation}
             interpretationStatus={interpretationStatus}
+            draftInstruments={workingBlueprintDraft.instruments}
             onRefreshInterpretation={() => refreshInterpretation(activeProject.id)}
             onToggleSourceEnabled={(sourceInputId) => toggleSourceEnabled(activeProject.id, sourceInputId)}
             onSourceWeightChange={(sourceInputId, weight) =>
@@ -130,6 +132,9 @@ export function StudioPage() {
             }
             onSourceFieldChange={(sourceInputId, field, value) =>
               updateSourceInputField(activeProject.id, sourceInputId, field, value)
+            }
+            onInstrumentToggle={(instrument, active) =>
+              updateDraftField(activeProject.id, `instruments.${instrument}` as BlueprintDraftField, active)
             }
           />
         </div>

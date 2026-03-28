@@ -1,20 +1,21 @@
+import { useMemo, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Progress } from '@/components/ui/progress'
-import type { ReactNode } from 'react'
+import { openExportFolder } from '@/lib/platform/fs-commands'
+import { useProjectStore } from '@/features/projects/store/use-project-store'
+import { useIntegrationStore } from '@/features/integrations/store/use-integration-store'
+import { useSettingsStore } from '../store/use-settings-store'
 
-const CACHE_USED_GB = 2.4
-const CACHE_TOTAL_GB = 10
-const PROJECT_STORAGE_LABEL = '1.8 GB across 8 projects'
-const EXPORT_PATH = '~/Riff/exports'
-const ARTWORK_CACHE_MB = 340
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) {
+    return `${bytes} B`
+  }
 
-function formatGb(value: number): string {
-  const digits = Number.isInteger(value) ? 0 : 1
-  return `${value.toLocaleString('en-US', {
-    minimumFractionDigits: digits,
-    maximumFractionDigits: 1,
-  })} GB`
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`
+  }
+
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
 function SettingRow({
@@ -24,7 +25,7 @@ function SettingRow({
 }: {
   label: string
   description?: string
-  control: ReactNode
+  control: React.ReactNode
 }) {
   return (
     <div
@@ -46,70 +47,115 @@ function SettingRow({
 }
 
 export function StorageSection() {
-  const cachePct = (CACHE_USED_GB / CACHE_TOTAL_GB) * 100
+  const projects = useProjectStore((state) => state.projects)
+  const integrationState = useIntegrationStore((state) => state.spotify)
+  const clearSpotifyCache = useIntegrationStore((state) => state.clearSpotifyCache)
+  const settingsSnapshot = useSettingsStore((state) => ({
+    appearance: state.appearance,
+    playback: state.playback,
+    creation: state.creation,
+    exports: state.exports,
+    advanced: state.advanced,
+  }))
+  const [feedback, setFeedback] = useState<string | null>(null)
+
+  const stats = useMemo(() => {
+    const projectBytes = JSON.stringify(projects).length
+    const settingsBytes = JSON.stringify(settingsSnapshot).length
+    const integrationBytes = JSON.stringify(integrationState).length
+    const coverBytes = projects.reduce((sum, project) => sum + (project.coverUrl?.length ?? 0), 0)
+
+    return {
+      projectBytes,
+      settingsBytes,
+      integrationBytes,
+      coverBytes,
+      totalBytes: projectBytes + settingsBytes + integrationBytes,
+    }
+  }, [integrationState, projects, settingsSnapshot])
+
+  const handleOpenExportFolder = async () => {
+    try {
+      await openExportFolder()
+      setFeedback('Opened the export folder.')
+    } catch {
+      setFeedback('Could not open the export folder on this device.')
+    }
+  }
+
+  const handleClearCache = () => {
+    clearSpotifyCache()
+    setFeedback('Cleared Spotify sync cache and stale connection state.')
+  }
 
   return (
     <section id="storage" className="space-y-6">
       <div>
         <h3 className="font-display text-base font-bold text-[var(--riff-text-primary)]">Storage</h3>
         <p className="mt-1 text-[12px] text-[var(--riff-text-muted)]">
-          Local cache, projects on disk, exports folder, and artwork
+          Real local data on this device: projects, preferences, and sync cache.
         </p>
       </div>
 
       <div className="space-y-3">
         <SettingRow
-          label="Local Cache"
+          label="Library storage"
+          description="All songs and project metadata currently stored in the local library."
           control={
-            <div className="flex w-full min-w-[min(100%,240px)] max-w-sm flex-col gap-2">
-              <Progress value={cachePct} className="h-1.5 bg-[var(--riff-surface-mid)] [&_[data-slot=progress-indicator]]:bg-[var(--riff-accent)]" />
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-[12px] tabular-nums text-[var(--riff-text-muted)]">
-                  {formatGb(CACHE_USED_GB)} of {formatGb(CACHE_TOTAL_GB)}
-                </span>
-                <Button type="button" variant="outline" size="sm">
-                  Clean Cache
-                </Button>
-              </div>
+            <div className="text-right">
+              <p className="text-sm text-[var(--riff-text-secondary)]">
+                {projects.length} projects
+              </p>
+              <p className="text-xs text-[var(--riff-text-muted)]">{formatBytes(stats.projectBytes)}</p>
             </div>
           }
         />
 
         <SettingRow
-          label="Project Storage"
-          control={
-            <p className="text-right text-sm text-[var(--riff-text-secondary)]">{PROJECT_STORAGE_LABEL}</p>
-          }
-        />
-
-        <SettingRow
-          label="Export Folder"
+          label="Preferences and sync state"
+          description="Saved settings plus imported Spotify metadata cached for convenience."
           control={
             <div className="flex flex-wrap items-center justify-end gap-2">
-              <span className="max-w-[220px] truncate font-mono text-xs text-[var(--riff-text-muted)]">
-                {EXPORT_PATH}
-              </span>
-              <Button type="button" variant="outline" size="sm">
-                Change
+              <Badge variant="secondary" className="font-normal text-[var(--riff-text-secondary)]">
+                {formatBytes(stats.settingsBytes + stats.integrationBytes)}
+              </Badge>
+              <Button type="button" variant="outline" size="sm" onClick={handleClearCache}>
+                Clear Cache
               </Button>
             </div>
           }
         />
 
         <SettingRow
-          label="Artwork Cache"
+          label="Cover art storage"
+          description="Approximate local weight of generated cover art attached to your projects."
+          control={
+            <Badge variant="secondary" className="font-normal tabular-nums text-[var(--riff-text-secondary)]">
+              {formatBytes(stats.coverBytes)}
+            </Badge>
+          }
+        />
+
+        <SettingRow
+          label="Export folder"
+          description="Open the desktop export destination used by Library and Track Details downloads."
           control={
             <div className="flex flex-wrap items-center justify-end gap-2">
-              <Badge variant="secondary" className="font-normal tabular-nums text-[var(--riff-text-secondary)]">
-                {ARTWORK_CACHE_MB.toLocaleString('en-US')} MB
-              </Badge>
-              <Button type="button" variant="outline" size="sm">
-                Clean
+              <span className="font-mono text-xs text-[var(--riff-text-muted)]">~/Riff/exports</span>
+              <Button type="button" variant="outline" size="sm" onClick={() => void handleOpenExportFolder()}>
+                Open
               </Button>
             </div>
           }
         />
       </div>
+
+      {feedback ? (
+        <p className="text-xs text-[var(--riff-text-secondary)]">{feedback}</p>
+      ) : null}
+      <p className="text-xs text-[var(--riff-text-faint)]">
+        Total local footprint currently tracked by the app: {formatBytes(stats.totalBytes)}.
+      </p>
     </section>
   )
 }

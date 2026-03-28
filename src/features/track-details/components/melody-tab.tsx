@@ -66,6 +66,7 @@ export function MelodyTab({
       chords: section.chords,
       lyricCue: lyrics?.find((candidate) => candidate.label.toLowerCase() === section.label.toLowerCase())?.lines.slice(0, 2),
       focus: `Keep the ${section.label.toLowerCase()} melodic shape steady over the ${section.chords[0] ?? 'main'} harmony.`,
+      memoryCue: lyrics?.find((candidate) => candidate.label.toLowerCase() === section.label.toLowerCase())?.lines[0],
     }))
 
   if (!guides?.length && !blueprint?.melodyDirection) {

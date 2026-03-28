@@ -5,7 +5,7 @@ import type {
   SpotifyProfile,
   SpotifyReferenceImport,
 } from '@/domain/providers'
-import { ensureSpotifyAccessToken } from '@/lib/providers/spotify-gateway'
+import { clearPendingSpotifyAuth, ensureSpotifyAccessToken } from '@/lib/providers/spotify-gateway'
 import { readStorageJson, writeStorageJson } from '@/lib/persistence/local-storage'
 
 /** Matches the 30s skew used in `ensureSpotifyAccessToken`. */
@@ -52,6 +52,7 @@ interface IntegrationsSnapshot {
 interface IntegrationStoreState extends IntegrationsSnapshot {
   setSpotifyAuth: (auth: SpotifyAuthState) => void
   clearSpotify: () => void
+  clearSpotifyCache: () => void
   setSpotifyProfile: (profile?: SpotifyProfile) => void
   setSpotifyImports: (payload: {
     topTracks?: SpotifyReferenceImport[]
@@ -129,12 +130,29 @@ export const useIntegrationStore = create<IntegrationStoreState>((set, get) => (
     }),
   clearSpotify: () =>
     set((state) => {
+      clearPendingSpotifyAuth()
       const snapshot = {
         ...state,
         spotify: {
           ...defaultSnapshot.spotify,
           useForCreationReferences: state.spotify.useForCreationReferences,
           autoSyncPlaylists: state.spotify.autoSyncPlaylists,
+        },
+      }
+      persist(snapshot)
+      return snapshot
+    }),
+  clearSpotifyCache: () =>
+    set((state) => {
+      clearPendingSpotifyAuth()
+      const snapshot = {
+        ...state,
+        spotify: {
+          ...state.spotify,
+          profile: undefined,
+          topTracks: [],
+          playlists: [],
+          lastSyncedAt: undefined,
         },
       }
       persist(snapshot)

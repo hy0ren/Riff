@@ -5,6 +5,7 @@ import { createStudioId, nowIso } from '@/lib/studio-pipeline/ids'
 import { normalizeProject } from '@/features/projects/lib/project-normalizers'
 import { buildChordSectionSuggestion, inferKeyFromChordText } from '@/lib/music-analysis'
 import type { MusicalMode } from '@/domain/blueprint'
+import { useSettingsStore } from '@/features/settings/store/use-settings-store'
 
 export interface CreateSourceSelectionDraft {
   type: SourceSelectionType
@@ -297,12 +298,16 @@ function buildSourceInput(
 export function createProjectFromSelection(
   selectedSources: CreateSourceSelectionDraft[],
 ): PersistedProject {
+  const creationDefaults = useSettingsStore.getState().creation
   const projectId = createStudioId('proj')
   const sourceInputs = selectedSources.map((selection, order) =>
     buildSourceInput(projectId, selection, order),
   )
   const sourceSet = createSourceSetFromInputs(projectId, sourceInputs)
   const createdAt = nowIso()
+  const inferredBpm =
+    selectedSources.find((selection) => selection.detectedBpm)?.detectedBpm ??
+    Math.round((creationDefaults.bpmRange[0] + creationDefaults.bpmRange[1]) / 2)
 
   const project: Project = {
     id: projectId,
@@ -319,6 +324,9 @@ export function createProjectFromSelection(
     isFavorite: false,
     isExported: false,
     learnReady: false,
+    genre: creationDefaults.defaultGenre,
+    bpm: inferredBpm,
+    vocalsEnabled: creationDefaults.vocalsEnabledByDefault,
   }
 
   return normalizeProject(project)

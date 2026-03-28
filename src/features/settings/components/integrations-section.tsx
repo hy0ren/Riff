@@ -217,13 +217,6 @@ export function IntegrationsSection() {
           </div>
         </div>
       </div>
-
-      <div
-        className="rounded-xl px-4 py-6 text-center text-sm text-[var(--riff-text-muted)]"
-        style={rowStyle}
-      >
-        More integrations coming soon — Apple Music, YouTube Music, SoundCloud
-      </div>
     </section>
   )
 }

@@ -1,14 +1,22 @@
-import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
-import { ChevronDown } from 'lucide-react'
+import { useSettingsStore } from '../store/use-settings-store'
 
 const cardStyle = {
   background: 'var(--riff-surface-low)',
   border: '1px solid rgba(255,255,255,0.04)',
 } as const
+
+const GENRE_OPTIONS = [
+  'Alt Pop',
+  'Cinematic',
+  'Indie Rock',
+  'R&B',
+  'Synthwave',
+  'Acoustic',
+] as const
 
 function SettingRow({
   label,
@@ -36,7 +44,8 @@ function SettingRow({
 }
 
 export function CreationSection() {
-  const [bpmRange, setBpmRange] = useState<[number, number]>([80, 140])
+  const creation = useSettingsStore((state) => state.creation)
+  const setCreation = useSettingsStore((state) => state.setCreation)
 
   return (
     <section id="creation" className="space-y-4">
@@ -45,26 +54,31 @@ export function CreationSection() {
           Creation
         </h3>
         <p className="mt-1 text-[12px] text-[var(--riff-text-muted)]">
-          Defaults applied when you start a new idea or generate arrangements.
+          Defaults that seed new projects before Gemini and Lyria refine the result.
         </p>
       </div>
       <Separator className="bg-white/[0.06]" />
       <div className="flex flex-col gap-2">
         <SettingRow
-          label="Default Genre"
-          description="Starting style for new projects and quick starts."
+          label="Default genre"
+          description="Used as the first stylistic anchor when a new project is created."
         >
-          <div
-            className="flex h-9 min-w-[9.5rem] cursor-default items-center justify-between gap-2 rounded-lg border border-white/[0.06] bg-[var(--riff-surface-mid)] px-3 text-sm text-[var(--riff-text-primary)]"
-            role="presentation"
+          <select
+            value={creation.defaultGenre}
+            onChange={(event) => setCreation({ defaultGenre: event.target.value })}
+            className="h-9 min-w-[160px] rounded-lg border border-white/[0.08] bg-[var(--riff-surface-mid)] px-3 text-sm text-[var(--riff-text-primary)] outline-none"
+            aria-label="Default genre"
           >
-            <span className="truncate">Synthwave</span>
-            <ChevronDown className="size-4 shrink-0 text-[var(--riff-text-faint)]" />
-          </div>
+            {GENRE_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
         </SettingRow>
         <SettingRow
-          label="Preferred BPM Range"
-          description="Targets tempo when generating grooves and drum patterns."
+          label="Preferred BPM range"
+          description="Used as the fallback tempo band when no stronger rhythmic source is present."
         >
           <div className="flex w-52 flex-col items-stretch gap-2">
             <div className="flex justify-end">
@@ -72,46 +86,31 @@ export function CreationSection() {
                 variant="outline"
                 className="border-white/[0.08] bg-[var(--riff-surface-mid)] text-[11px] font-medium tabular-nums text-[var(--riff-text-primary)]"
               >
-                {bpmRange[0]}-{bpmRange[1]}
+                {creation.bpmRange[0]}-{creation.bpmRange[1]}
               </Badge>
             </div>
             <Slider
               min={60}
               max={200}
               step={1}
-              value={bpmRange}
-              onValueChange={(v) => {
-                const a = v[0] ?? 60
-                const b = v[1] ?? 200
-                setBpmRange(a <= b ? [a, b] : [b, a])
+              value={creation.bpmRange}
+              onValueChange={(value) => {
+                const start = value[0] ?? 60
+                const end = value[1] ?? 200
+                setCreation({ bpmRange: start <= end ? [start, end] : [end, start] })
               }}
               className="w-full"
             />
           </div>
         </SettingRow>
         <SettingRow
-          label="Default Vocal Mode"
-          description="Vocals enabled by default for new generations."
+          label="Vocals on by default"
+          description="New projects start in vocal-led mode unless you flip them instrumental in Studio."
         >
-          <Switch />
-        </SettingRow>
-        <SettingRow
-          label="Auto-save Drafts"
-          description="Continuously save work-in-progress to avoid losing changes."
-        >
-          <Switch defaultChecked />
-        </SettingRow>
-        <SettingRow
-          label="Default Visibility"
-          description="Who can see new projects when you first publish or share."
-        >
-          <div
-            className="flex h-9 min-w-[9.5rem] cursor-default items-center justify-between gap-2 rounded-lg border border-white/[0.06] bg-[var(--riff-surface-mid)] px-3 text-sm text-[var(--riff-text-primary)]"
-            role="presentation"
-          >
-            <span className="truncate">Private</span>
-            <ChevronDown className="size-4 shrink-0 text-[var(--riff-text-faint)]" />
-          </div>
+          <Switch
+            checked={creation.vocalsEnabledByDefault}
+            onCheckedChange={(value) => setCreation({ vocalsEnabledByDefault: value })}
+          />
         </SettingRow>
       </div>
     </section>

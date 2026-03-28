@@ -303,11 +303,11 @@ export function BlueprintEditor({
           <AccordionTrigger className="py-2 hover:no-underline text-[var(--riff-text-primary)]">
             Instrumentation
           </AccordionTrigger>
-          <AccordionContent className="space-y-3 pt-4 pb-2">
-            <p className="text-xs text-[var(--riff-text-muted)]">
-              Toggle instruments on or off for the generated arrangement.
+          <AccordionContent className="space-y-2 pt-3 pb-2">
+            <p className="text-[11px] text-[var(--riff-text-muted)]">
+              Toggle instruments for the arrangement.
             </p>
-            <div className="grid grid-cols-1 gap-2">
+            <div className="grid grid-cols-2 gap-1.5">
               {Object.entries(draft.instruments).map(([instrument, active]) => {
                 const field = `instruments.${instrument}` as BlueprintDraftField
                 return (
@@ -315,34 +315,23 @@ export function BlueprintEditor({
                     key={instrument}
                     type="button"
                     aria-pressed={active}
-                    className={`flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-sm transition-all ${
+                    className={`flex items-center gap-2 rounded-lg border px-2 py-1.5 text-left text-xs transition-all ${
                       active
-                        ? 'border-[var(--riff-accent)] bg-[var(--riff-accent)]/18 text-[var(--riff-text-primary)] shadow-[0_0_0_1px_rgba(59,130,246,0.25)]'
+                        ? 'border-[var(--riff-accent)] bg-[var(--riff-accent)]/18 text-[var(--riff-text-primary)]'
                         : 'border-[var(--riff-surface-highest)] bg-[var(--riff-surface-low)] text-[var(--riff-text-muted)] hover:border-[var(--riff-accent)]/40 hover:text-[var(--riff-text-secondary)]'
                     }`}
                     onClick={() => onFieldChange(field, !active)}
                   >
-                    <div className="flex items-center gap-3">
-                      <span
-                        className={`flex h-5 w-5 items-center justify-center rounded-full border transition-colors ${
-                          active
-                            ? 'border-[var(--riff-accent)] bg-[var(--riff-accent)] text-white'
-                            : 'border-[var(--riff-surface-highest)] bg-[var(--riff-surface)] text-transparent'
-                        }`}
-                      >
-                        <Check className="h-3.5 w-3.5" />
-                      </span>
-                      <span className="font-medium capitalize">{formatInstrumentLabel(instrument)}</span>
-                    </div>
                     <span
-                      className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${
+                      className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border transition-colors ${
                         active
-                          ? 'bg-[var(--riff-accent)]/20 text-[var(--riff-accent-light)]'
-                          : 'bg-[var(--riff-surface)] text-[var(--riff-text-muted)]'
+                          ? 'border-[var(--riff-accent)] bg-[var(--riff-accent)] text-white'
+                          : 'border-[var(--riff-surface-highest)] bg-[var(--riff-surface)] text-transparent'
                       }`}
                     >
-                      {active ? 'On' : 'Off'}
+                      <Check className="h-2.5 w-2.5" />
                     </span>
+                    <span className="font-medium capitalize">{formatInstrumentLabel(instrument)}</span>
                   </button>
                 )
               })}

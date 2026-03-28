@@ -1,5 +1,6 @@
 import { Separator } from '@/components/ui/separator'
 import { Switch } from '@/components/ui/switch'
+import { useSettingsStore, type ExportAudioFormat } from '../store/use-settings-store'
 
 const cardStyle = {
   background: 'var(--riff-surface-low)',
@@ -32,63 +33,81 @@ function SettingRow({
 }
 
 export function ExportPrefsSection() {
+  const exportPrefs = useSettingsStore((state) => state.exports)
+  const setExports = useSettingsStore((state) => state.setExports)
+
   return (
-    <section id="exports-prefs" className="space-y-4">
+    <section id="exports" className="space-y-4">
       <div>
         <h3 className="font-display text-base font-bold text-[var(--riff-text-primary)]">
           Export preferences
         </h3>
         <p className="mt-1 text-[12px] text-[var(--riff-text-muted)]">
-          Choose the files and sidecar assets included when you export a project.
+          Defaults used when you export songs directly from the Library.
         </p>
       </div>
       <Separator className="bg-white/[0.06]" />
       <div className="flex flex-col gap-2">
         <SettingRow
-          label="Default Audio Format"
-          description="Container used for bounced audio from the timeline."
+          label="Preferred audio format"
+          description="Used when the rendered audio already matches the selected format."
         >
-          <div className="flex h-9 min-w-[5.5rem] items-center justify-center rounded-lg border border-white/[0.06] bg-[var(--riff-surface-mid)] px-3 text-sm font-medium text-[var(--riff-text-primary)]">
-            WAV
-          </div>
+          <select
+            value={exportPrefs.audioFormat}
+            onChange={(event) =>
+              setExports({ audioFormat: event.target.value as ExportAudioFormat })
+            }
+            className="h-9 min-w-[120px] rounded-lg border border-white/[0.08] bg-[var(--riff-surface-mid)] px-3 text-sm text-[var(--riff-text-primary)] outline-none"
+            aria-label="Preferred audio format"
+          >
+            <option value="wav">WAV</option>
+            <option value="mp3">MP3</option>
+          </select>
         </SettingRow>
         <SettingRow
-          label="Export Quality"
-          description="Bitrate and processing applied to rendered audio."
+          label="Include metadata JSON"
+          description="Bundle a machine-readable summary with key song attributes."
         >
-          <div className="flex h-9 min-w-[6.5rem] items-center justify-center rounded-lg border border-white/[0.06] bg-[var(--riff-surface-mid)] px-3 text-sm font-medium text-[var(--riff-text-primary)]">
-            Lossless
-          </div>
+          <Switch
+            checked={exportPrefs.includeMetadataJson}
+            onCheckedChange={(value) => setExports({ includeMetadataJson: value })}
+          />
         </SettingRow>
         <SettingRow
-          label="Include Metadata JSON"
-          description="Attach machine-readable project metadata alongside exports."
+          label="Include chord sheet"
+          description="Adds a timestamped section-by-section chord map."
         >
-          <Switch defaultChecked />
+          <Switch
+            checked={exportPrefs.includeChordSheet}
+            onCheckedChange={(value) => setExports({ includeChordSheet: value })}
+          />
         </SettingRow>
         <SettingRow
-          label="Include Chord Sheet"
-          description="Export a chord chart for collaborators and performers."
+          label="Include melody guide"
+          description="Adds the Learn-ready melody focus notes when available."
         >
-          <Switch defaultChecked />
+          <Switch
+            checked={exportPrefs.includeMelodyGuide}
+            onCheckedChange={(value) => setExports({ includeMelodyGuide: value })}
+          />
         </SettingRow>
         <SettingRow
-          label="Include Melody Guide"
-          description="Add a reference guide track for melodic lines."
+          label="Include lyrics"
+          description="Attach lyric text for vocal songs whenever a lyric sheet exists."
         >
-          <Switch />
+          <Switch
+            checked={exportPrefs.includeLyrics}
+            onCheckedChange={(value) => setExports({ includeLyrics: value })}
+          />
         </SettingRow>
         <SettingRow
-          label="Include Lyrics"
-          description="Bundle lyric text when available for the project."
+          label="Include all versions"
+          description="Exports every saved version instead of only the active one."
         >
-          <Switch defaultChecked />
-        </SettingRow>
-        <SettingRow
-          label="Include All Versions"
-          description="Export alternate takes and stems in addition to the main mix."
-        >
-          <Switch />
+          <Switch
+            checked={exportPrefs.includeAllVersions}
+            onCheckedChange={(value) => setExports({ includeAllVersions: value })}
+          />
         </SettingRow>
       </div>
     </section>

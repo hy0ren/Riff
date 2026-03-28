@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { PlayableTrack } from '@/domain/playback'
+import { useSettingsStore } from '@/features/settings/store/use-settings-store'
 
 const audioElement =
   typeof Audio !== 'undefined'
@@ -40,11 +41,17 @@ export const usePlaybackStore = create<PlaybackState>((set) => ({
       }
     }),
   setTrack: (track) => {
+    const autoplayOnSelect = useSettingsStore.getState().playback.autoplayOnSelect
     if (audioElement && track.audioUrl) {
       audioElement.src = track.audioUrl
-      void audioElement.play().catch(() => {})
+      audioElement.currentTime = 0
+      if (autoplayOnSelect) {
+        void audioElement.play().catch(() => {})
+      } else {
+        audioElement.pause()
+      }
     }
-    set({ currentTrack: track, isPlaying: true, currentTime: 0 })
+    set({ currentTrack: track, isPlaying: autoplayOnSelect, currentTime: 0 })
   },
   clearTrack: () => {
     if (audioElement) {
@@ -93,6 +100,7 @@ export const usePlaybackStore = create<PlaybackState>((set) => ({
 
 if (audioElement) {
   audioElement.preload = 'auto'
+  audioElement.volume = useSettingsStore.getState().playback.defaultVolume
   audioElement.addEventListener('loadedmetadata', () => {
     if (Number.isFinite(audioElement.duration) && audioElement.duration > 0) {
       usePlaybackStore.getState().updateDuration(audioElement.duration)

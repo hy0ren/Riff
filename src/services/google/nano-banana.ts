@@ -14,7 +14,7 @@ export async function callNanoBananaCoverArt(prompt: string): Promise<{
     ],
     generationConfig: {
       responseModalities: ['IMAGE'],
-      temperature: 0.8,
+      temperature: 0.65,
     },
   })
 

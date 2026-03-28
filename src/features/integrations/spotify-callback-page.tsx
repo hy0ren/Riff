@@ -4,6 +4,7 @@ import { PageFrame } from '@/components/layout/page-frame'
 import {
   clearPendingSpotifyAuth,
   completeSpotifyAuthorization,
+  decodeSpotifyStatePayload,
   readPendingSpotifyAuth,
   syncSpotifyLibrary,
 } from '@/lib/providers/spotify-gateway'
@@ -35,17 +36,22 @@ export function SpotifyCallbackPage() {
       }
 
       const pendingAuth = readPendingSpotifyAuth()
+      const callbackAuth = decodeSpotifyStatePayload(state)
       const resolvedAuth =
-        auth.state === state && auth.codeVerifier
+        state && auth.state === state && auth.codeVerifier
           ? auth
-          : pendingAuth?.state === state && pendingAuth.codeVerifier
+          : state && pendingAuth?.state === state && pendingAuth.codeVerifier
             ? pendingAuth
-            : auth
+            : callbackAuth?.codeVerifier
+              ? callbackAuth
+              : pendingAuth?.codeVerifier
+                ? pendingAuth
+                : auth
 
-      if (!code || !state || !resolvedAuth.state || state !== resolvedAuth.state) {
+      if (!code || !resolvedAuth.codeVerifier) {
         setStatus('failed')
         setErrorMessage(
-          'Spotify callback validation failed. Reconnect from the same app origin you started from.',
+          'Spotify callback validation failed. No PKCE session was available to finish the Spotify login.',
         )
         return
       }
@@ -85,6 +91,7 @@ export function SpotifyCallbackPage() {
         setErrorMessage(
           error instanceof Error ? error.message : 'Spotify authorization failed.',
         )
+        clearPendingSpotifyAuth()
       }
     }
 

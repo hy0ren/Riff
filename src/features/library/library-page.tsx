@@ -397,7 +397,7 @@ export function LibraryPage() {
             className="mx-auto w-full max-w-md"
           />
         ) : viewMode === 'grid' ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 max-w-[1400px] gap-5">
             {filtered.map(project => (
               <LibraryProjectCard
                 key={project.id}

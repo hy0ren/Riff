@@ -1,9 +1,8 @@
-import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
-import { ChevronDown } from 'lucide-react'
+import { useSettingsStore } from '../store/use-settings-store'
 
 const cardStyle = {
   background: 'var(--riff-surface-low)',
@@ -36,7 +35,8 @@ function SettingRow({
 }
 
 export function PlaybackSection() {
-  const [crossfadeSec, setCrossfadeSec] = useState(2)
+  const playback = useSettingsStore((state) => state.playback)
+  const setPlayback = useSettingsStore((state) => state.setPlayback)
 
   return (
     <section id="playback" className="space-y-4">
@@ -45,44 +45,14 @@ export function PlaybackSection() {
           Playback
         </h3>
         <p className="mt-1 text-[12px] text-[var(--riff-text-muted)]">
-          How Riff plays audio, transitions between tracks, and restores your queue.
+          Defaults used by the global player when you open songs from Library, Learn, or Track Details.
         </p>
       </div>
       <Separator className="bg-white/[0.06]" />
       <div className="flex flex-col gap-2">
         <SettingRow
-          label="Autoplay"
-          description="Start the next track when the current one ends."
-        >
-          <Switch defaultChecked />
-        </SettingRow>
-        <SettingRow
-          label="Gapless Playback"
-          description="Remove silence between consecutive tracks when supported."
-        >
-          <Switch defaultChecked />
-        </SettingRow>
-        <SettingRow
-          label="Normalize Volume"
-          description="Apply loudness matching so tracks feel closer in level."
-        >
-          <Switch />
-        </SettingRow>
-        <SettingRow
-          label="Default Audio Quality"
-          description="Streaming and download quality for playback."
-        >
-          <div
-            className="flex h-9 min-w-[9.5rem] cursor-default items-center justify-between gap-2 rounded-lg border border-white/[0.06] bg-[var(--riff-surface-mid)] px-3 text-sm text-[var(--riff-text-primary)]"
-            role="presentation"
-          >
-            <span className="truncate">High (320kbps)</span>
-            <ChevronDown className="size-4 shrink-0 text-[var(--riff-text-faint)]" />
-          </div>
-        </SettingRow>
-        <SettingRow
-          label="Crossfade"
-          description="Overlap the outgoing and incoming track for smoother transitions."
+          label="Default player volume"
+          description="Applied to the bottom player every time the app loads."
         >
           <div className="flex w-44 flex-col items-stretch gap-2">
             <div className="flex justify-end">
@@ -90,24 +60,29 @@ export function PlaybackSection() {
                 variant="outline"
                 className="border-white/[0.08] bg-[var(--riff-surface-mid)] text-[11px] font-medium tabular-nums text-[var(--riff-text-primary)]"
               >
-                {crossfadeSec}s
+                {Math.round(playback.defaultVolume * 100)}%
               </Badge>
             </div>
             <Slider
               min={0}
-              max={12}
+              max={100}
               step={1}
-              value={[crossfadeSec]}
-              onValueChange={(v) => setCrossfadeSec(v[0] ?? 0)}
+              value={[Math.round(playback.defaultVolume * 100)]}
+              onValueChange={(value) =>
+                setPlayback({ defaultVolume: (value[0] ?? 80) / 100 })
+              }
               className="w-full"
             />
           </div>
         </SettingRow>
         <SettingRow
-          label="Queue Persistence"
-          description="Remember your queue and position between sessions."
+          label="Autoplay selected songs"
+          description="If off, selecting a song loads it into the player without immediately starting playback."
         >
-          <Switch defaultChecked />
+          <Switch
+            checked={playback.autoplayOnSelect}
+            onCheckedChange={(value) => setPlayback({ autoplayOnSelect: value })}
+          />
         </SettingRow>
       </div>
     </section>
