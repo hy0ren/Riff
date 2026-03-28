@@ -2,11 +2,9 @@ import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app'
 import {
   browserLocalPersistence,
   getAuth,
-  getRedirectResult,
   GoogleAuthProvider,
   onAuthStateChanged,
   setPersistence,
-  signInWithRedirect,
   signInWithPopup,
   signOut,
   type User,
@@ -26,7 +24,6 @@ import type { PersistedProject } from '@/domain/project'
 import { assertFirebaseConfigured, getProviderConfig, isFirebaseConfigured } from '@/lib/config/provider-config'
 
 let firebaseApp: FirebaseApp | undefined
-let redirectResultResolved = false
 
 function sanitizeForFirestore<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T
@@ -46,26 +43,6 @@ function buildDefaultUsername(displayName: string | null | undefined, email: str
   }
 
   return 'riffuser'
-}
-
-function isTauriDesktopRuntime(): boolean {
-  if (typeof window === 'undefined') {
-    return false
-  }
-
-  const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : ''
-  return Boolean(
-    '__TAURI_INTERNALS__' in window ||
-      '__TAURI__' in window ||
-      userAgent.includes('Tauri'),
-  )
-}
-
-function isFirebasePopupBlockedError(error: unknown): boolean {
-  return (
-    error instanceof Error &&
-    /auth\/popup-blocked|auth\/cancelled-popup-request/i.test(error.message)
-  )
 }
 
 export function firebaseEnabled(): boolean {
@@ -100,39 +77,14 @@ export function getFirebaseDbInstance() {
   return getFirestore(getFirebaseAppInstance())
 }
 
-export async function completeFirebaseRedirectSignIn(): Promise<User | null> {
-  if (redirectResultResolved) {
-    return null
-  }
-
-  redirectResultResolved = true
-  const auth = getFirebaseAuthInstance()
-  const result = await getRedirectResult(auth)
-  return result?.user ?? null
-}
-
 export async function signInWithFirebaseGoogle(): Promise<User | null> {
   const auth = getFirebaseAuthInstance()
   await setPersistence(auth, browserLocalPersistence)
   const provider = new GoogleAuthProvider()
   provider.setCustomParameters({ prompt: 'select_account' })
 
-  if (isTauriDesktopRuntime()) {
-    await signInWithRedirect(auth, provider)
-    return null
-  }
-
-  try {
-    const result = await signInWithPopup(auth, provider)
-    return result.user
-  } catch (error) {
-    if (isFirebasePopupBlockedError(error)) {
-      await signInWithRedirect(auth, provider)
-      return null
-    }
-
-    throw error
-  }
+  const result = await signInWithPopup(auth, provider)
+  return result.user
 }
 
 export async function signOutFirebase(): Promise<void> {

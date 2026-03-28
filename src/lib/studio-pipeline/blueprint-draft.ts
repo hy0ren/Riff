@@ -1,6 +1,7 @@
 import type { Blueprint, InstrumentPlan } from '@/domain/blueprint'
 import type { BlueprintDraft, BlueprintDraftField, BlueprintFieldOrigin, BlueprintFieldOriginMap } from '@/domain/blueprint-draft'
 import type { InterpretationSnapshot } from '@/domain/interpretation'
+import { getSafeDerivedBlueprint, getSafeInterpretationConflicts } from '@/lib/interpretation-utils'
 import { createStudioId, nowIso } from './ids'
 
 export const INSTRUMENT_FIELDS: (keyof InstrumentPlan)[] = [
@@ -134,6 +135,8 @@ export function createBlueprintDraft({
   activeBlueprint?: Blueprint
   existingDraft?: BlueprintDraft
 }): BlueprintDraft {
+  const interpretationConflicts = getSafeInterpretationConflicts(interpretation)
+  const derivedBlueprint = getSafeDerivedBlueprint(interpretation)
   const createdAt = existingDraft?.createdAt ?? nowIso()
   const committedBlueprint = cloneBlueprint(activeBlueprint)
   const draft: BlueprintDraft = {
@@ -156,12 +159,12 @@ export function createBlueprintDraft({
       ...existingDraft?.origins,
     },
     lockedFields: existingDraft?.lockedFields ?? [],
-    conflictFields: interpretation.conflicts
+    conflictFields: interpretationConflicts
       .map((conflict) => toDraftConflictField(conflict.field))
       .filter((field): field is BlueprintDraftField => Boolean(field)),
     structure:
       existingDraft?.structure ??
-      interpretation.derivedBlueprint.structure ??
+      derivedBlueprint.structure ??
       activeBlueprint?.structure,
   }
 
@@ -190,7 +193,7 @@ export function createBlueprintDraft({
       continue
     }
 
-    const interpretedValue = interpretation.derivedBlueprint[field]
+    const interpretedValue = derivedBlueprint[field]
     ;(draft as unknown as Record<string, unknown>)[field] = mergeInferredValue(
       draft[field],
       interpretedValue as Blueprint[typeof field] | undefined,
@@ -207,7 +210,7 @@ export function createBlueprintDraft({
 
   for (const instrumentField of INSTRUMENT_FIELDS) {
     const originField = getInstrumentFieldKey(instrumentField)
-    const inferredValue = interpretation.derivedBlueprint.instruments?.[instrumentField]
+    const inferredValue = derivedBlueprint.instruments?.[instrumentField]
 
     if (draft.lockedFields.includes(originField)) {
       continue

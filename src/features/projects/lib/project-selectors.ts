@@ -4,6 +4,7 @@ import type { GenerationRun } from '@/domain/generation-run'
 import type { InterpretationSnapshot } from '@/domain/interpretation'
 import type { PersistedProject, ProjectVersion } from '@/domain/project'
 import type { SourceSet } from '@/domain/source-set'
+import { normalizeInterpretationSnapshot } from '@/lib/interpretation-utils'
 import { useProjectStore } from '../store/use-project-store'
 
 export const PRIMARY_PROJECT_ID = 'proj-active-1'
@@ -76,10 +77,10 @@ export function getActiveSourceSet(project: PersistedProject): SourceSet | undef
 }
 
 export function getActiveInterpretation(project: PersistedProject): InterpretationSnapshot | undefined {
-  return (
+  return normalizeInterpretationSnapshot(
     project.interpretations.find(
       (interpretation) => interpretation.id === project.activeInterpretationId,
-    ) ?? project.interpretations[0]
+    ) ?? project.interpretations[0],
   )
 }
 

@@ -24,6 +24,11 @@ import {
 } from '@/lib/providers/gemini-gateway'
 import { generateProjectCoverArt } from '@/lib/providers/cover-art-gateway'
 import { generateTrack } from '@/lib/providers/lyria-gateway'
+import {
+  getSafeDerivedBlueprint,
+  getSafeInterpretationConflicts,
+  getSafeInterpretationSignals,
+} from '@/lib/interpretation-utils'
 import { parseLyricsTextIntoSections } from '@/lib/lyrics'
 import type { Blueprint } from '@/domain/blueprint'
 
@@ -131,9 +136,9 @@ async function buildInterpretationSnapshot(
     return {
       ...fallbackInterpretation,
       summary: providerResult.summary,
-      derivedBlueprint: providerResult.derivedBlueprint,
-      signals: providerResult.signals,
-      conflicts: providerResult.conflicts,
+      derivedBlueprint: getSafeDerivedBlueprint(providerResult),
+      signals: getSafeInterpretationSignals(providerResult),
+      conflicts: getSafeInterpretationConflicts(providerResult),
       providerMetadata: {
         provider: providerResult.provider,
         model: providerResult.model,
@@ -595,6 +600,14 @@ export const useStudioStore = create<StudioState>((set) => ({
           requestHash: providerResult.requestHash,
         },
       })
+
+      if (!providerResult.artifactBase64 || !providerResult.artifactMimeType) {
+        throw new Error(
+          providerResult.summary?.trim().length
+            ? `Lyria did not return playable audio. Provider response: ${providerResult.summary}`
+            : 'Lyria did not return playable audio for this generation.',
+        )
+      }
 
       const nextVersion = createMockTrackVersion({
         project: projectAfterRun,

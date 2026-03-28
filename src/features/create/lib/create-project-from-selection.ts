@@ -80,6 +80,33 @@ function titleFromSelection(selectedSources: CreateSourceSelectionDraft[]): stri
   }
 }
 
+function toProjectSourceType(selectedSources: CreateSourceSelectionDraft[]): Project['sourceType'] {
+  if (selectedSources.length > 1) {
+    return 'mixed'
+  }
+
+  switch (selectedSources[0]?.type) {
+    case 'hum':
+      return 'hum'
+    case 'riff':
+      return 'riff'
+    case 'lyrics':
+      return 'lyrics'
+    case 'chords':
+      return 'chords'
+    case 'sheet':
+      return 'sheet_music'
+    case 'spotify':
+      return selectedSources[0]?.spotifyReferenceType === 'playlist'
+        ? 'spotify_playlist'
+        : 'spotify_track'
+    case 'remix':
+      return 'remix'
+    default:
+      return 'mixed'
+  }
+}
+
 function buildSourceInput(
   projectId: string,
   selection: CreateSourceSelectionDraft,
@@ -320,7 +347,7 @@ export function createProjectFromSelection(
     sourceInputs,
     sourceSets: [sourceSet],
     activeSourceSetId: sourceSet.id,
-    sourceType: sourceInputs.length > 1 ? 'mixed' : undefined,
+    sourceType: toProjectSourceType(selectedSources),
     isFavorite: false,
     isExported: false,
     learnReady: false,

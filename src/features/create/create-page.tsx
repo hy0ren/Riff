@@ -186,6 +186,7 @@ export function CreatePage() {
   const [selectedTypes, setSelectedTypes] = useState<SourceSelectionType[]>([])
   const [sourceDrafts, setSourceDrafts] = useState<SourceDraftMap>({})
   const [isCreating, setIsCreating] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
   const [activeRecordingType, setActiveRecordingType] = useState<AudioSelectionType | null>(null)
   const [recordingError, setRecordingError] = useState<string | null>(null)
   const [audioAnalysisByType, setAudioAnalysisByType] = useState<Partial<Record<AudioSelectionType, 'idle' | 'analyzing' | 'ready' | 'failed'>>>({})
@@ -411,6 +412,8 @@ export function CreatePage() {
   const spotifyRequiredButUnlinked =
     selectedTypes.includes('spotify') &&
     (!spotifyConnected || (!spotify.topTracks.length && !spotify.playlists.length))
+  const missingSpotifySelection =
+    selectedTypes.includes('spotify') && !sourceDrafts.spotify?.spotifyUri
   const canContinue =
     hasSelection &&
     !isCreating &&
@@ -418,7 +421,8 @@ export function CreatePage() {
     (!requiresAudioInput || !missingAudioInput) &&
     !missingSheetInput &&
     !missingRemixSelection &&
-    !spotifyRequiredButUnlinked
+    !spotifyRequiredButUnlinked &&
+    !missingSpotifySelection
 
   const selectedSources = selectedTypes.map(
     (type) => sourceDrafts[type] ?? defaultDraftForType(type),
@@ -458,17 +462,22 @@ export function CreatePage() {
       return
     }
 
+    setCreateError(null)
     setIsCreating(true)
-    const project = createProjectFromSelection(selectedSources)
-    upsertProject(project)
-
     try {
+      const project = createProjectFromSelection(selectedSources)
+      upsertProject(project)
       await useStudioStore.getState().refreshInterpretation(project.id)
-    } catch {
-      // The Studio will still open with the local fallback interpretation.
+      navigate(projectRoutes.studio(project.id))
+    } catch (error) {
+      setCreateError(
+        error instanceof Error
+          ? error.message
+          : 'Create workflow failed. Try again in a moment.',
+      )
+    } finally {
+      setIsCreating(false)
     }
-
-    navigate(projectRoutes.studio(project.id))
   }
 
   const handleConnectSpotify = async () => {
@@ -552,7 +561,7 @@ export function CreatePage() {
         </div>
       </div>
 
-      {(selectedTypes.length > 0 || recordingError) && (
+      {(selectedTypes.length > 0 || recordingError || createError) && (
         <div className="mt-8 grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
           <div className="space-y-5">
             {selectedTypes
@@ -1394,10 +1403,23 @@ export function CreatePage() {
               </div>
             )}
 
+            {createError && (
+              <div className="mt-5 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">
+                {createError}
+              </div>
+            )}
+
             {missingAudioInput && (
               <div className="mt-5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
                 Hum and riff sources need an actual recording or uploaded file before Studio can
                 infer the blueprint.
+              </div>
+            )}
+
+            {missingSpotifySelection && (
+              <div className="mt-5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
+                Pick a real Spotify track or playlist before continuing so Spotify is used as an
+                actual source instead of placeholder metadata.
               </div>
             )}
 

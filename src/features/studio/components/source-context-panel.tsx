@@ -19,6 +19,7 @@ import { Slider } from '@/components/ui/slider'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { getSafeDerivedBlueprint, getSafeInterpretationConflicts } from '@/lib/interpretation-utils'
 
 interface SourceContextPanelProps {
   sourceInputs: SourceInput[]
@@ -200,6 +201,8 @@ export function SourceContextPanel({
   const items = [...(sourceSet?.items ?? [])].sort((left, right) => left.order - right.order)
   const sourceById = new Map(sourceInputs.map((sourceInput) => [sourceInput.id, sourceInput]))
   const activeItems = items.filter((item) => item.enabled)
+  const derivedBlueprint = getSafeDerivedBlueprint(interpretation)
+  const interpretationConflicts = getSafeInterpretationConflicts(interpretation)
 
   return (
     <div className="flex flex-col gap-6">
@@ -337,24 +340,24 @@ export function SourceContextPanel({
           <SignalCard
             label="Detected Key"
             value={
-              interpretation?.derivedBlueprint.key && interpretation?.derivedBlueprint.mode
-                ? `${interpretation.derivedBlueprint.key} ${interpretation.derivedBlueprint.mode}`
+              derivedBlueprint.key && derivedBlueprint.mode
+                ? `${derivedBlueprint.key} ${derivedBlueprint.mode}`
                 : 'Awaiting'
             }
           />
           <SignalCard
             label="Est. BPM"
-            value={interpretation?.derivedBlueprint.bpm ? `${interpretation.derivedBlueprint.bpm}` : 'Awaiting'}
+            value={derivedBlueprint.bpm ? `${derivedBlueprint.bpm}` : 'Awaiting'}
           />
-          <SignalCard label="Mood" value={interpretation?.derivedBlueprint.mood ?? 'Awaiting'} />
-          <SignalCard label="Energy" value={interpretation?.derivedBlueprint.energy ?? 'Awaiting'} />
+          <SignalCard label="Mood" value={derivedBlueprint.mood ?? 'Awaiting'} />
+          <SignalCard label="Energy" value={derivedBlueprint.energy ?? 'Awaiting'} />
         </div>
 
         <div className="rounded-lg bg-[var(--riff-surface-low)] p-3">
           <p className="mb-2 text-xs text-[var(--riff-text-muted)]">Instrumentation</p>
           <div className="flex flex-wrap gap-1.5">
             {(() => {
-              const instruments = draftInstruments ?? interpretation?.derivedBlueprint.instruments ?? {}
+              const instruments = draftInstruments ?? derivedBlueprint.instruments ?? {}
               const entries = Object.entries(instruments)
               if (!entries.length) {
                 return <span className="text-xs text-[var(--riff-text-muted)]">No instrumentation signal yet.</span>
@@ -377,13 +380,13 @@ export function SourceContextPanel({
           </div>
         </div>
 
-        {interpretation?.conflicts.length ? (
+        {interpretationConflicts.length ? (
           <div className="rounded-lg border border-amber-500/20 bg-amber-500/8 p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-amber-200">
               Signal Conflicts
             </p>
             <div className="mt-2 space-y-2">
-              {interpretation.conflicts.map((conflict) => (
+              {interpretationConflicts.map((conflict) => (
                 <p key={`${conflict.field}-${conflict.summary}`} className="text-xs text-amber-100/85">
                   {conflict.summary}
                 </p>
